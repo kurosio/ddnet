@@ -408,6 +408,24 @@ void CGameContext::CreateSoundGlobal(int Sound, int Target) const
 	if(Sound < 0)
 		return;
 
+	// music (changes)
+	if(Sound >= NUM_SOUNDS)
+	{
+		CNetMsg_Sv_MapSoundGlobal Msg;
+		Msg.m_SoundId = Sound - NUM_SOUNDS;
+		if(Target == -2)
+			Server()->SendPackMsg(&Msg, MSGFLAG_NOSEND, -1);
+		else
+		{
+			int Flag = MSGFLAG_VITAL;
+			if(Target != -1)
+				Flag |= MSGFLAG_NORECORD;
+			Server()->SendPackMsg(&Msg, Flag, Target);
+		}
+		return;
+	}
+	//
+
 	CNetMsg_Sv_SoundGlobal Msg;
 	Msg.m_SoundId = Sound;
 	if(Target == -2)

@@ -43,6 +43,16 @@
 
 */
 
+// music
+enum
+{
+	SOUND_SELF_MUSIC = NUM_SOUNDS,
+	SOUND_SELF_3_2_1_GO,
+	SOUND_SELF_BIT,
+	SOUND_SELF_GO,
+};
+
+// dnet
 class CCharacter;
 class IConfigManager;
 class CConfig;
