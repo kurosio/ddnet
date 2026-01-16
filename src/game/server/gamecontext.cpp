@@ -3,6 +3,8 @@
 #include "gamecontext.h"
 
 #include "entities/character.h"
+#include "entities/rhythm_arrow.h"
+#include "entities/rhythm_field.h"
 #include "gamemodes/DDRace.h"
 #include "gamemodes/mod.h"
 #include "player.h"
@@ -4395,6 +4397,16 @@ CPlayer *CGameContext::CreatePlayer(int ClientId, int StartTeam, bool Afk, int L
 	m_apPlayers[ClientId]->m_LastWhisperTo = LastWhisperTo;
 	m_NextUniqueClientId += 1;
 	return m_apPlayers[ClientId];
+}
+
+CRhythmField *CGameContext::CreateRhythmField(vec2 Pos, float Bpm, float HitRadius)
+{
+	return new CRhythmField(&m_World, Pos, Bpm, HitRadius);
+}
+
+CRhythmArrow *CGameContext::CreateRhythmArrow(CRhythmField *pField, vec2 Origin, vec2 Direction, float Speed, int HitTick)
+{
+	return new CRhythmArrow(&m_World, pField, Origin, Direction, Speed, HitTick);
 }
 
 void CGameContext::DeleteTempfile()

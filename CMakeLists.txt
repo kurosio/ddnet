@@ -2802,6 +2802,10 @@ if(SERVER)
     entities/light.h
     entities/pickup.cpp
     entities/pickup.h
+    entities/rhythm_arrow.cpp
+    entities/rhythm_arrow.h
+    entities/rhythm_field.cpp
+    entities/rhythm_field.h
     entities/plasma.cpp
     entities/plasma.h
     entities/projectile.cpp

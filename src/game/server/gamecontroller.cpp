@@ -271,7 +271,6 @@ bool IGameController::OnEntity(int Index, int x, int y, int Layer, int Flags, bo
 			Number);
 		pBullet->SetBouncing(2 - (Dir % 2));
 	}
-
 	int Type = -1;
 	int SubType = 0;
 

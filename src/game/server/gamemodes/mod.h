@@ -5,6 +5,8 @@
 
 #include <vector>
 
+class CRhythmField;
+
 enum class EStageState : int
 {
 	STATE_LOBBY,
@@ -44,6 +46,8 @@ class CGameControllerMod : public IGameController
 	std::vector<CNote> m_vNotes;
 	std::vector<int> m_vNoteTicks;
 	int m_CurrentNote;
+	int m_NextSpawnNote;
+	CRhythmField *m_apRhythmFields[MAX_CLIENTS];
 
 	bool LoadDanceMapData(const char *pMapName);
 

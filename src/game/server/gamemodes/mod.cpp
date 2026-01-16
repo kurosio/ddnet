@@ -1,5 +1,6 @@
 #include "mod.h"
 
+#include <base/math.h>
 #include <base/system.h>
 
 #include <engine/shared/config.h>
@@ -8,6 +9,7 @@
 
 #include <game/server/player.h>
 #include <game/server/entities/character.h>
+#include <game/server/entities/rhythm_field.h>
 
 // Exchange this to a string that identifies your game mode.
 // DM, TDM and CTF are reserved for teeworlds original modes.
@@ -45,6 +47,9 @@ CGameControllerMod::CGameControllerMod(class CGameContext *pGameServer) :
 	m_State = EStageState::STATE_LOBBY;
 	m_pGameType = GAME_TYPE_NAME;
 	mem_zero(&m_Meta, sizeof(m_Meta));
+	m_CurrentNote = 0;
+	m_NextSpawnNote = 0;
+	mem_zero(m_apRhythmFields, sizeof(m_apRhythmFields));
 
 	if(!IsLobbyMap())
 	{
@@ -158,6 +163,7 @@ void CGameControllerMod::ChangeState(EStageState State)
 			GameServer()->CreateSoundGlobal(SOUND_SELF_MUSIC);
 
 			m_CurrentNote = 0;
+			m_NextSpawnNote = 0;
 			m_GameOverTick = -1;
 			m_vNoteTicks.clear();
 			m_vNoteTicks.reserve(m_vNotes.size());
@@ -165,6 +171,14 @@ void CGameControllerMod::ChangeState(EStageState State)
 			{
 				const int NoteTick = m_RoundStartTick + round_to_int(Note.m_Time * Server()->TickSpeed());
 				m_vNoteTicks.push_back(NoteTick);
+			}
+			for(int i = 0; i < MAX_CLIENTS; ++i)
+			{
+				if(m_apRhythmFields[i])
+				{
+					m_apRhythmFields[i]->Reset();
+					m_apRhythmFields[i] = nullptr;
+				}
 			}
 			break;
 
@@ -290,9 +304,70 @@ bool CGameControllerMod::IsLobbyMap() const
 
 void CGameControllerMod::UpdateNotes()
 {
+	constexpr float FieldOffsetY = -96.0f;
+	constexpr float FieldHitRadius = 32.0f;
+
 	const int CurrentTick = Server()->Tick();
 	const float ElapsedSec = (CurrentTick - m_RoundStartTick) / float(Server()->TickSpeed());
 	const bool UseTickNotes = m_vNoteTicks.size() == m_vNotes.size();
+	int LeadTicks = 0;
+
+	for(int i = 0; i < MAX_CLIENTS; ++i)
+	{
+		CCharacter *pChar = GameServer()->GetPlayerChar(i);
+		if(!pChar)
+		{
+			if(m_apRhythmFields[i])
+			{
+				m_apRhythmFields[i]->Reset();
+				m_apRhythmFields[i] = nullptr;
+			}
+			continue;
+		}
+
+		if(!m_apRhythmFields[i])
+		{
+			vec2 FieldPos = pChar->m_Pos + vec2(0.0f, FieldOffsetY);
+			m_apRhythmFields[i] = GameServer()->CreateRhythmField(FieldPos, m_Meta.m_Bpm, FieldHitRadius);
+			if(m_apRhythmFields[i])
+				m_apRhythmFields[i]->SetAutoSpawn(false);
+		}
+
+		if(m_apRhythmFields[i])
+		{
+			m_apRhythmFields[i]->SetHitZone(pChar->m_Pos + vec2(0.0f, FieldOffsetY));
+			m_apRhythmFields[i]->SetBpm(m_Meta.m_Bpm);
+			LeadTicks = maximum(LeadTicks, m_apRhythmFields[i]->BeatIntervalTicks());
+		}
+	}
+
+	if(LeadTicks <= 0)
+		return;
+
+	while(m_NextSpawnNote < (int)m_vNotes.size() &&
+		(UseTickNotes ? CurrentTick >= m_vNoteTicks[m_NextSpawnNote] - LeadTicks : (double)m_vNotes[m_NextSpawnNote].m_Time <= (ElapsedSec + (float)LeadTicks / Server()->TickSpeed())))
+	{
+		const CNote &Note = m_vNotes[m_NextSpawnNote];
+		const int NoteTick = UseTickNotes ? m_vNoteTicks[m_NextSpawnNote] : (m_RoundStartTick + round_to_int(Note.m_Time * Server()->TickSpeed()));
+
+		for(int i = 0; i < MAX_CLIENTS; ++i)
+		{
+			CRhythmField *pField = m_apRhythmFields[i];
+			if(!pField)
+				continue;
+
+			if(Note.m_StepBits & STEP_BIT_LEFT)
+				pField->SpawnArrow(vec2(-1.0f, 0.0f), NoteTick);
+			if(Note.m_StepBits & STEP_BIT_RIGHT)
+				pField->SpawnArrow(vec2(1.0f, 0.0f), NoteTick);
+			if(Note.m_StepBits & STEP_BIT_UP)
+				pField->SpawnArrow(vec2(0.0f, -1.0f), NoteTick);
+			if(Note.m_StepBits & STEP_BIT_DOWN)
+				pField->SpawnArrow(vec2(0.0f, 1.0f), NoteTick);
+		}
+
+		++m_NextSpawnNote;
+	}
 
 	while(m_CurrentNote < (int)m_vNotes.size() && (UseTickNotes ? CurrentTick >= m_vNoteTicks[m_CurrentNote] : (double)m_vNotes[m_CurrentNote].m_Time <= ElapsedSec))
 	{
