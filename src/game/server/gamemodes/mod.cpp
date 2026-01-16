@@ -110,8 +110,8 @@ void CGameControllerMod::TickState()
 	{
 		UpdateNotes();
 
-		const int DurationSeconds = round_to_int(m_Meta.m_DurationSeconds) * Server()->TickSpeed();
-		if(m_GameOverTick == -1 && Server()->Tick() > (m_RoundStartTick + DurationSeconds))
+		const int DurationTicks = round_to_int(m_Meta.m_DurationSeconds * Server()->TickSpeed());
+		if(m_GameOverTick == -1 && Server()->Tick() > (m_RoundStartTick + DurationTicks))
 		{
 			EndRound();
 		}
@@ -158,7 +158,7 @@ void CGameControllerMod::ChangeState(EStageState State)
 			GameServer()->CreateSoundGlobal(SOUND_SELF_MUSIC);
 
 			m_CurrentNote = 0;
-			m_GameOverTick = round_to_int(m_Meta.m_DurationSeconds);
+			m_GameOverTick = -1;
 			m_vNoteTicks.clear();
 			m_vNoteTicks.reserve(m_vNotes.size());
 			for(const auto &Note : m_vNotes)
