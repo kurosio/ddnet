@@ -39,6 +39,11 @@ int json_int_get(const json_value *pInteger)
 	return pInteger->u.integer;
 }
 
+double json_double_get(const json_value *pDouble)
+{
+	return pDouble->u.dbl;
+}
+
 int json_boolean_get(const json_value *pBoolean)
 {
 	return pBoolean->u.boolean != 0;
