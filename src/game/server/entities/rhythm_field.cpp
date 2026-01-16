@@ -34,10 +34,36 @@ CRhythmField::CRhythmField(CGameWorld *pGameWorld, vec2 Pos, float Bpm, float Hi
 	m_HitZonePos(Pos),
 	m_HitZoneRadius(HitRadius)
 {
+	for(int &Id : m_aLaserIds)
+		Id = -1;
+	for(int &Id : m_aPickupIds)
+		Id = -1;
+	for(int &Id : m_aProjectileIds)
+		Id = -1;
+	EnsureSnapIds();
 	UpdateBeatTiming();
 	m_NextBeatTick = Server()->Tick() + m_BeatIntervalTicks;
 
 	GameWorld()->InsertEntity(this);
+}
+
+CRhythmField::~CRhythmField()
+{
+	for(int &Id : m_aLaserIds)
+	{
+		if(Id >= 0)
+			Server()->SnapFreeId(Id);
+	}
+	for(int &Id : m_aPickupIds)
+	{
+		if(Id >= 0)
+			Server()->SnapFreeId(Id);
+	}
+	for(int &Id : m_aProjectileIds)
+	{
+		if(Id >= 0)
+			Server()->SnapFreeId(Id);
+	}
 }
 
 void CRhythmField::Reset()
@@ -80,7 +106,46 @@ void CRhythmField::Snap(int SnappingClient)
 
 	const int SnappingClientVersion = GameServer()->GetClientVersion(SnappingClient);
 	const bool Sixup = Server()->IsSixup(SnappingClient);
-	GameServer()->SnapPickup(CSnapContext(SnappingClientVersion, Sixup, SnappingClient), GetId(), m_HitZonePos, POWERUP_ARMOR, 0, -1, 0);
+	const CSnapContext Context(SnappingClientVersion, Sixup, SnappingClient);
+
+	constexpr float LaneWidth = 64.0f;
+	constexpr float FieldHeight = 128.0f;
+	constexpr float HitLineDepth = 20.0f;
+	constexpr float MarkerOffset = 24.0f;
+
+	const vec2 Top = m_HitZonePos - vec2(0.0f, FieldHeight);
+	const vec2 Bottom = m_HitZonePos + vec2(0.0f, HitLineDepth);
+	const float HalfWidth = LaneWidth * 2.0f;
+
+	for(int i = 0; i < 5; ++i)
+	{
+		const float X = m_HitZonePos.x - HalfWidth + LaneWidth * i;
+		const vec2 From(X, Top.y);
+		const vec2 To(X, Bottom.y);
+		GameServer()->SnapLaserObject(Context, m_aLaserIds[i], To, From, Server()->Tick(), -1, LASERTYPE_DOOR);
+	}
+
+	const vec2 HitFrom(m_HitZonePos.x - HalfWidth, m_HitZonePos.y);
+	const vec2 HitTo(m_HitZonePos.x + HalfWidth, m_HitZonePos.y);
+	GameServer()->SnapLaserObject(Context, m_aLaserIds[5], HitTo, HitFrom, Server()->Tick(), -1, LASERTYPE_DOOR);
+
+	for(int i = 0; i < 4; ++i)
+	{
+		const float X = m_HitZonePos.x - HalfWidth + LaneWidth * (i + 0.5f);
+		const vec2 MarkerPos(X, m_HitZonePos.y + MarkerOffset);
+		GameServer()->SnapPickup(Context, m_aPickupIds[i], MarkerPos, POWERUP_WEAPON, WEAPON_GUN, -1, 0);
+
+		CNetObj_Projectile *pProj = Server()->SnapNewItem<CNetObj_Projectile>(m_aProjectileIds[i]);
+		if(pProj)
+		{
+			pProj->m_X = (int)MarkerPos.x;
+			pProj->m_Y = (int)MarkerPos.y;
+			pProj->m_VelX = 0;
+			pProj->m_VelY = 0;
+			pProj->m_StartTick = Server()->Tick();
+			pProj->m_Type = WEAPON_GUN;
+		}
+	}
 }
 
 void CRhythmField::SetBpm(float Bpm)
@@ -98,6 +163,25 @@ void CRhythmField::SetHitZone(vec2 Pos)
 {
 	m_Pos = Pos;
 	m_HitZonePos = Pos;
+}
+
+void CRhythmField::EnsureSnapIds()
+{
+	for(int &Id : m_aLaserIds)
+	{
+		if(Id < 0)
+			Id = Server()->SnapNewId();
+	}
+	for(int &Id : m_aPickupIds)
+	{
+		if(Id < 0)
+			Id = Server()->SnapNewId();
+	}
+	for(int &Id : m_aProjectileIds)
+	{
+		if(Id < 0)
+			Id = Server()->SnapNewId();
+	}
 }
 
 void CRhythmField::RegisterArrow(CRhythmArrow *pArrow)

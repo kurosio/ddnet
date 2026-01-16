@@ -304,7 +304,7 @@ bool CGameControllerMod::IsLobbyMap() const
 
 void CGameControllerMod::UpdateNotes()
 {
-	constexpr float FieldOffsetY = -96.0f;
+	constexpr float FieldOffsetY = 96.0f;
 	constexpr float FieldHitRadius = 32.0f;
 
 	const int CurrentTick = Server()->Tick();

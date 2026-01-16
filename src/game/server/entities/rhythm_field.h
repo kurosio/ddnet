@@ -13,6 +13,7 @@ class CRhythmField : public CEntity
 {
 public:
 	CRhythmField(CGameWorld *pGameWorld, vec2 Pos, float Bpm, float HitRadius);
+	~CRhythmField() override;
 
 	void Reset() override;
 	void Tick() override;
@@ -35,6 +36,7 @@ public:
 	float HitZoneRadius() const { return m_HitZoneRadius; }
 
 private:
+	void EnsureSnapIds();
 	void UpdateBeatTiming();
 	void SpawnArrow();
 
@@ -49,6 +51,9 @@ private:
 	std::vector<CRhythmArrow *> m_vArrows;
 	vec2 m_HitZonePos;
 	float m_HitZoneRadius;
+	int m_aLaserIds[6];
+	int m_aPickupIds[4];
+	int m_aProjectileIds[4];
 };
 
 #endif
