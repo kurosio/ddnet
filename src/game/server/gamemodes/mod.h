@@ -3,7 +3,6 @@
 
 #include <game/server/gamecontroller.h>
 
-#include <chrono>
 #include <vector>
 
 enum class EStageState : int
@@ -43,7 +42,7 @@ class CGameControllerMod : public IGameController
 	EStageState m_State;
 	CMapMeta m_Meta;
 	std::vector<CNote> m_vNotes;
-	std::chrono::steady_clock::time_point m_StartTimePoint;
+	std::vector<int> m_vNoteTicks;
 	int m_CurrentNote;
 
 	bool LoadDanceMapData(const char *pMapName);

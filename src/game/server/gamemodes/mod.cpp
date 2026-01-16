@@ -159,7 +159,13 @@ void CGameControllerMod::ChangeState(EStageState State)
 
 			m_CurrentNote = 0;
 			m_GameOverTick = round_to_int(m_Meta.m_DurationSeconds);
-			m_StartTimePoint = std::chrono::steady_clock::now();
+			m_vNoteTicks.clear();
+			m_vNoteTicks.reserve(m_vNotes.size());
+			for(const auto &Note : m_vNotes)
+			{
+				const int NoteTick = m_RoundStartTick + round_to_int(Note.m_Time * Server()->TickSpeed());
+				m_vNoteTicks.push_back(NoteTick);
+			}
 			break;
 
 		case EStageState::STATE_FINISHED:
@@ -205,6 +211,7 @@ bool CGameControllerMod::LoadDanceMapData(const char *pMapName)
 	}
 
 	m_vNotes.clear();
+	m_vNoteTicks.clear();
 	mem_zero(&m_Meta, sizeof(m_Meta));
 
 	const json_value &Root = *pJsonData;
@@ -283,12 +290,11 @@ bool CGameControllerMod::IsLobbyMap() const
 
 void CGameControllerMod::UpdateNotes()
 {
-	using clock = std::chrono::steady_clock;
-	const auto Now = clock::now();
+	const int CurrentTick = Server()->Tick();
+	const float ElapsedSec = (CurrentTick - m_RoundStartTick) / float(Server()->TickSpeed());
+	const bool UseTickNotes = m_vNoteTicks.size() == m_vNotes.size();
 
-	const double ElapsedSec = std::chrono::duration<double>(Now - m_StartTimePoint).count();
-
-	while(m_CurrentNote < (int)m_vNotes.size() && (double)m_vNotes[m_CurrentNote].m_Time <= ElapsedSec)
+	while(m_CurrentNote < (int)m_vNotes.size() && (UseTickNotes ? CurrentTick >= m_vNoteTicks[m_CurrentNote] : (double)m_vNotes[m_CurrentNote].m_Time <= ElapsedSec))
 	{
 		const CNote &Note = m_vNotes[m_CurrentNote];
 		for(int i = 0; i < MAX_CLIENTS; i++)
