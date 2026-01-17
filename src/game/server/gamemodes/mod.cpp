@@ -64,21 +64,12 @@ CGameControllerMod::CGameControllerMod(class CGameContext *pGameServer) :
 	m_FieldAnchorPos = vec2(0.0f, 0.0f);
 	m_FieldAnchorValid = false;
 	mem_zero(m_aPrevInputs, sizeof(m_aPrevInputs));
-	mem_zero(m_aBufferedInputs, sizeof(m_aBufferedInputs));
-	std::fill(std::begin(m_aBufferedInputReceiveTick), std::end(m_aBufferedInputReceiveTick), -1);
-	mem_zero(m_aHasBufferedInputs, sizeof(m_aHasBufferedInputs));
 	mem_zero(m_aLanePressTick, sizeof(m_aLanePressTick));
 	mem_zero(m_aLaneLastHitTick, sizeof(m_aLaneLastHitTick));
 	mem_zero(m_aLanePressId, sizeof(m_aLanePressId));
 	mem_zero(m_aLanePressUsedId, sizeof(m_aLanePressUsedId));
 	mem_zero(m_aNoteLaneHitMask, sizeof(m_aNoteLaneHitMask));
 	mem_zero(m_aScores, sizeof(m_aScores));
-	mem_zero(m_aRhythmLateInputs, sizeof(m_aRhythmLateInputs));
-	mem_zero(m_aRhythmSkippedInputs, sizeof(m_aRhythmSkippedInputs));
-	mem_zero(m_aRhythmLastLogTick, sizeof(m_aRhythmLastLogTick));
-	mem_zero(m_aRhythmApplyDelaySum, sizeof(m_aRhythmApplyDelaySum));
-	mem_zero(m_aRhythmApplyDelayMax, sizeof(m_aRhythmApplyDelayMax));
-	mem_zero(m_aRhythmApplyDelayCount, sizeof(m_aRhythmApplyDelayCount));
 
 	if(!IsLobbyMap())
 	{
@@ -259,14 +250,8 @@ void CGameControllerMod::ChangeState(EStageState State)
 			for(int i = 0; i < MAX_CLIENTS; ++i)
 			{
 				m_aPrevInputs[i] = CNetObj_PlayerInput{};
-				m_aBufferedInputs[i] = CNetObj_PlayerInput{};
-				m_aHasBufferedInputs[i] = false;
 				m_aNoteLaneHitMask[i] = 0;
 				m_aScores[i] = {};
-				m_aRhythmInputQueue[i].clear();
-				m_aRhythmLateInputs[i] = 0;
-				m_aRhythmSkippedInputs[i] = 0;
-				m_aRhythmLastLogTick[i] = 0;
 			}
 			for(auto *pPlayer : GameServer()->m_apPlayers)
 			{
@@ -658,14 +643,6 @@ void CGameControllerMod::UpdateNotes()
 			mem_zero(m_aLanePressUsedId[i], sizeof(m_aLanePressUsedId[i]));
 			m_aNoteLaneHitMask[i] = 0;
 			m_aScores[i] = {};
-			m_aRhythmInputQueue[i].clear();
-			m_aHasBufferedInputs[i] = false;
-			m_aBufferedInputReceiveTick[i] = -1;
-			m_aRhythmLateInputs[i] = 0;
-			m_aRhythmSkippedInputs[i] = 0;
-			m_aRhythmApplyDelaySum[i] = 0;
-			m_aRhythmApplyDelayMax[i] = 0;
-			m_aRhythmApplyDelayCount[i] = 0;
 			continue;
 		}
 	}
