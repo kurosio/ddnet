@@ -18,6 +18,8 @@ struct SRhythmFieldConfig
 	static constexpr float s_FieldOffsetY = 128.0f;
 	static constexpr float s_MissOffset = 64.0f;
 	static constexpr float s_LeadBeats = 2.0f;
+	static constexpr int s_HitWindowTicks = 5;
+	static constexpr int s_InvalidPressTick = -1000000;
 };
 
 class CRhythmField : public CEntity

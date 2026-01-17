@@ -54,6 +54,13 @@ CGameControllerMod::CGameControllerMod(class CGameContext *pGameServer) :
 	mem_zero(m_apRhythmFields, sizeof(m_apRhythmFields));
 	mem_zero(m_aPrevInputs, sizeof(m_aPrevInputs));
 	mem_zero(m_aLanePressTick, sizeof(m_aLanePressTick));
+	mem_zero(m_aLockedPos, sizeof(m_aLockedPos));
+	mem_zero(m_aHasLockedPos, sizeof(m_aHasLockedPos));
+	for(int i = 0; i < MAX_CLIENTS; ++i)
+	{
+		for(int Lane = 0; Lane < SRhythmFieldConfig::s_LaneCount; ++Lane)
+			m_aLanePressTick[i][Lane] = SRhythmFieldConfig::s_InvalidPressTick;
+	}
 
 	if(!IsLobbyMap())
 	{
@@ -183,6 +190,10 @@ void CGameControllerMod::ChangeState(EStageState State)
 					m_apRhythmFields[i]->Reset();
 					m_apRhythmFields[i] = nullptr;
 				}
+				m_aHasLockedPos[i] = false;
+				m_aPrevInputs[i] = CNetObj_PlayerInput{};
+				for(int Lane = 0; Lane < SRhythmFieldConfig::s_LaneCount; ++Lane)
+					m_aLanePressTick[i][Lane] = SRhythmFieldConfig::s_InvalidPressTick;
 			}
 			break;
 
@@ -325,8 +336,20 @@ void CGameControllerMod::UpdateNotes()
 				m_apRhythmFields[i]->Reset();
 				m_apRhythmFields[i] = nullptr;
 			}
+			m_aHasLockedPos[i] = false;
+			m_aPrevInputs[i] = CNetObj_PlayerInput{};
+			for(int Lane = 0; Lane < SRhythmFieldConfig::s_LaneCount; ++Lane)
+				m_aLanePressTick[i][Lane] = SRhythmFieldConfig::s_InvalidPressTick;
 			continue;
 		}
+
+		if(!m_aHasLockedPos[i])
+		{
+			m_aLockedPos[i] = pChar->m_Pos;
+			m_aHasLockedPos[i] = true;
+		}
+		pChar->SetPosition(m_aLockedPos[i]);
+		pChar->ResetVelocity();
 
 		if(!m_apRhythmFields[i])
 		{
@@ -342,8 +365,6 @@ void CGameControllerMod::UpdateNotes()
 			m_apRhythmFields[i]->SetBpm(m_Meta.m_Bpm);
 			LeadTicks = maximum(LeadTicks, (int)std::round(m_apRhythmFields[i]->BeatIntervalTicks() * SRhythmFieldConfig::s_LeadBeats));
 		}
-
-		pChar->Freeze(1);
 
 		const CNetObj_PlayerInput CurrentInput = GameServer()->GetLastPlayerInput(i);
 		CNetObj_PlayerInput &PrevInput = m_aPrevInputs[i];
@@ -396,11 +417,36 @@ void CGameControllerMod::UpdateNotes()
 	while(m_CurrentNote < (int)m_vNotes.size() && (UseTickNotes ? CurrentTick >= m_vNoteTicks[m_CurrentNote] : (double)m_vNotes[m_CurrentNote].m_Time <= ElapsedSec))
 	{
 		const CNote &Note = m_vNotes[m_CurrentNote];
-		for(int i = 0; i < MAX_CLIENTS; i++)
+		const int NoteTick = UseTickNotes ? m_vNoteTicks[m_CurrentNote] : (m_RoundStartTick + round_to_int(Note.m_Time * Server()->TickSpeed()));
+		const int aLaneBits[3] = {
+			Note.m_StepBits & STEP_BIT_LEFT,
+			Note.m_StepBits & (STEP_BIT_UP | STEP_BIT_DOWN),
+			Note.m_StepBits & STEP_BIT_RIGHT,
+		};
+
+		for(int i = 0; i < MAX_CLIENTS; ++i)
 		{
-			auto *pChar = GameServer()->GetPlayerChar(i);
-			if(pChar)
-				GameServer()->CreateDeath(pChar->m_Pos, i);
+			CRhythmField *pField = m_apRhythmFields[i];
+			if(!pField)
+				continue;
+
+			const vec2 HitPos = pField->HitZonePos();
+			const float HalfWidth = SRhythmFieldConfig::s_LaneWidth * 1.5f;
+
+			for(int LaneIndex = 0; LaneIndex < SRhythmFieldConfig::s_LaneCount; ++LaneIndex)
+			{
+				if(!aLaneBits[LaneIndex])
+					continue;
+
+				const int PressTick = m_aLanePressTick[i][LaneIndex];
+				if(PressTick != SRhythmFieldConfig::s_InvalidPressTick &&
+					std::abs(PressTick - NoteTick) <= SRhythmFieldConfig::s_HitWindowTicks)
+				{
+					const float X = HitPos.x - HalfWidth + SRhythmFieldConfig::s_LaneWidth * (LaneIndex + 0.5f);
+					GameServer()->CreateExplosion(vec2(X, HitPos.y), -1, WEAPON_GRENADE, true, -1);
+					m_aLanePressTick[i][LaneIndex] = SRhythmFieldConfig::s_InvalidPressTick;
+				}
+			}
 		}
 
 		++m_CurrentNote;
