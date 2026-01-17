@@ -2,6 +2,7 @@
 
 #include <base/math.h>
 #include <cmath>
+#include <limits>
 #include <base/system.h>
 
 #include <engine/shared/config.h>
@@ -54,8 +55,7 @@ CGameControllerMod::CGameControllerMod(class CGameContext *pGameServer) :
 	mem_zero(m_apRhythmFields, sizeof(m_apRhythmFields));
 	mem_zero(m_aPrevInputs, sizeof(m_aPrevInputs));
 	mem_zero(m_aLanePressTick, sizeof(m_aLanePressTick));
-	mem_zero(m_aLockedPos, sizeof(m_aLockedPos));
-	mem_zero(m_aHasLockedPos, sizeof(m_aHasLockedPos));
+	mem_zero(m_aScores, sizeof(m_aScores));
 	for(int i = 0; i < MAX_CLIENTS; ++i)
 	{
 		for(int Lane = 0; Lane < SRhythmFieldConfig::s_LaneCount; ++Lane)
@@ -190,8 +190,8 @@ void CGameControllerMod::ChangeState(EStageState State)
 					m_apRhythmFields[i]->Reset();
 					m_apRhythmFields[i] = nullptr;
 				}
-				m_aHasLockedPos[i] = false;
 				m_aPrevInputs[i] = CNetObj_PlayerInput{};
+				m_aScores[i] = {};
 				for(int Lane = 0; Lane < SRhythmFieldConfig::s_LaneCount; ++Lane)
 					m_aLanePressTick[i][Lane] = SRhythmFieldConfig::s_InvalidPressTick;
 			}
@@ -326,30 +326,22 @@ void CGameControllerMod::UpdateNotes()
 	const bool UseTickNotes = m_vNoteTicks.size() == m_vNotes.size();
 	int LeadTicks = 0;
 
-	for(int i = 0; i < MAX_CLIENTS; ++i)
-	{
-		CCharacter *pChar = GameServer()->GetPlayerChar(i);
-		if(!pChar)
+		for(int i = 0; i < MAX_CLIENTS; ++i)
 		{
-			if(m_apRhythmFields[i])
+			CCharacter *pChar = GameServer()->GetPlayerChar(i);
+			if(!pChar)
 			{
-				m_apRhythmFields[i]->Reset();
-				m_apRhythmFields[i] = nullptr;
+				if(m_apRhythmFields[i])
+				{
+					m_apRhythmFields[i]->Reset();
+					m_apRhythmFields[i] = nullptr;
+				}
+				m_aPrevInputs[i] = CNetObj_PlayerInput{};
+				m_aScores[i] = {};
+				for(int Lane = 0; Lane < SRhythmFieldConfig::s_LaneCount; ++Lane)
+					m_aLanePressTick[i][Lane] = SRhythmFieldConfig::s_InvalidPressTick;
+				continue;
 			}
-			m_aHasLockedPos[i] = false;
-			m_aPrevInputs[i] = CNetObj_PlayerInput{};
-			for(int Lane = 0; Lane < SRhythmFieldConfig::s_LaneCount; ++Lane)
-				m_aLanePressTick[i][Lane] = SRhythmFieldConfig::s_InvalidPressTick;
-			continue;
-		}
-
-		if(!m_aHasLockedPos[i])
-		{
-			m_aLockedPos[i] = pChar->m_Pos;
-			m_aHasLockedPos[i] = true;
-		}
-		pChar->SetPosition(m_aLockedPos[i]);
-		pChar->ResetVelocity();
 
 		if(!m_apRhythmFields[i])
 		{
@@ -430,6 +422,7 @@ void CGameControllerMod::UpdateNotes()
 			if(!pField)
 				continue;
 
+			const CNetObj_PlayerInput CurrentInput = GameServer()->GetLastPlayerInput(i);
 			const vec2 HitPos = pField->HitZonePos();
 			const float HalfWidth = SRhythmFieldConfig::s_LaneWidth * 1.5f;
 
@@ -439,12 +432,32 @@ void CGameControllerMod::UpdateNotes()
 					continue;
 
 				const int PressTick = m_aLanePressTick[i][LaneIndex];
-				if(PressTick != SRhythmFieldConfig::s_InvalidPressTick &&
-					std::abs(PressTick - NoteTick) <= SRhythmFieldConfig::s_HitWindowTicks)
+				const bool Held =
+					(LaneIndex == 0 && CurrentInput.m_Direction < 0) ||
+					(LaneIndex == 1 && (CurrentInput.m_Jump & 1)) ||
+					(LaneIndex == 2 && CurrentInput.m_Direction > 0);
+				const int Delta = PressTick != SRhythmFieldConfig::s_InvalidPressTick ? std::abs(PressTick - NoteTick) : std::numeric_limits<int>::max();
+				const bool Hit = (PressTick != SRhythmFieldConfig::s_InvalidPressTick && Delta <= SRhythmFieldConfig::s_HitWindowTicks) ||
+					(Held && std::abs(CurrentTick - NoteTick) <= SRhythmFieldConfig::s_HitWindowTicks);
+
+				if(Hit)
 				{
 					const float X = HitPos.x - HalfWidth + SRhythmFieldConfig::s_LaneWidth * (LaneIndex + 0.5f);
 					GameServer()->CreateExplosion(vec2(X, HitPos.y), -1, WEAPON_GRENADE, true, -1);
 					m_aLanePressTick[i][LaneIndex] = SRhythmFieldConfig::s_InvalidPressTick;
+					const int RatingDelta = (Delta != std::numeric_limits<int>::max()) ? Delta : std::abs(CurrentTick - NoteTick);
+					if(RatingDelta <= SRhythmFieldConfig::s_PerfectWindowTicks)
+						m_aScores[i].m_Perfect++;
+					else if(RatingDelta <= SRhythmFieldConfig::s_GoodWindowTicks)
+						m_aScores[i].m_Good++;
+					else if(RatingDelta <= SRhythmFieldConfig::s_BadWindowTicks)
+						m_aScores[i].m_Bad++;
+					else
+						m_aScores[i].m_Miss++;
+				}
+				else
+				{
+					m_aScores[i].m_Miss++;
 				}
 			}
 		}

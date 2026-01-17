@@ -4,8 +4,6 @@
 #include <game/server/gamecontroller.h>
 #include <game/server/entities/rhythm_field.h>
 
-#include <base/vmath.h>
-
 #include <vector>
 
 struct CNetObj_PlayerInput;
@@ -50,11 +48,18 @@ class CGameControllerMod : public IGameController
 	std::vector<int> m_vNoteTicks;
 	int m_CurrentNote;
 	int m_NextSpawnNote;
+	struct SRhythmScore
+	{
+		int m_Perfect;
+		int m_Good;
+		int m_Bad;
+		int m_Miss;
+	};
+
 	CRhythmField *m_apRhythmFields[MAX_CLIENTS];
 	CNetObj_PlayerInput m_aPrevInputs[MAX_CLIENTS];
 	int m_aLanePressTick[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
-	vec2 m_aLockedPos[MAX_CLIENTS];
-	bool m_aHasLockedPos[MAX_CLIENTS];
+	SRhythmScore m_aScores[MAX_CLIENTS];
 
 	bool LoadDanceMapData(const char *pMapName);
 

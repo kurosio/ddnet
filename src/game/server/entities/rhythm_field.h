@@ -18,7 +18,10 @@ struct SRhythmFieldConfig
 	static constexpr float s_FieldOffsetY = 128.0f;
 	static constexpr float s_MissOffset = 64.0f;
 	static constexpr float s_LeadBeats = 2.0f;
-	static constexpr int s_HitWindowTicks = 5;
+	static constexpr int s_HitWindowTicks = 7;
+	static constexpr int s_PerfectWindowTicks = 2;
+	static constexpr int s_GoodWindowTicks = 4;
+	static constexpr int s_BadWindowTicks = 6;
 	static constexpr int s_InvalidPressTick = -1000000;
 };
 
