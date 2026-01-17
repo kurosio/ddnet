@@ -58,7 +58,7 @@ class CGameControllerMod : public IGameController
 
 	CRhythmField *m_apRhythmFields[MAX_CLIENTS];
 	CNetObj_PlayerInput m_aPrevInputs[MAX_CLIENTS];
-	int m_aLanePressTick[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
+	bool m_aLanePressed[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
 	SRhythmScore m_aScores[MAX_CLIENTS];
 
 	bool LoadDanceMapData(const char *pMapName);
