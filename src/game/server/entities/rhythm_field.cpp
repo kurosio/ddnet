@@ -33,6 +33,13 @@ CRhythmField::CRhythmField(CGameWorld *pGameWorld, vec2 Pos, float Bpm, float Hi
 
 CRhythmField::~CRhythmField()
 {
+	for(CRhythmArrow *pArrow : m_vArrows)
+	{
+		if(pArrow)
+			pArrow->DetachField();
+	}
+	m_vArrows.clear();
+
 	if(m_HitLineLaserId >= 0)
 		Server()->SnapFreeId(m_HitLineLaserId);
 }
