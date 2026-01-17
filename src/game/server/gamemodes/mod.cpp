@@ -65,6 +65,7 @@ CGameControllerMod::CGameControllerMod(class CGameContext *pGameServer) :
 	m_FieldAnchorValid = false;
 	mem_zero(m_aPrevInputs, sizeof(m_aPrevInputs));
 	mem_zero(m_aBufferedInputs, sizeof(m_aBufferedInputs));
+	std::fill(std::begin(m_aBufferedInputReceiveTick), std::end(m_aBufferedInputReceiveTick), -1);
 	mem_zero(m_aHasBufferedInputs, sizeof(m_aHasBufferedInputs));
 	mem_zero(m_aLanePressTick, sizeof(m_aLanePressTick));
 	mem_zero(m_aNoteLaneHitMask, sizeof(m_aNoteLaneHitMask));
@@ -72,6 +73,9 @@ CGameControllerMod::CGameControllerMod(class CGameContext *pGameServer) :
 	mem_zero(m_aRhythmLateInputs, sizeof(m_aRhythmLateInputs));
 	mem_zero(m_aRhythmSkippedInputs, sizeof(m_aRhythmSkippedInputs));
 	mem_zero(m_aRhythmLastLogTick, sizeof(m_aRhythmLastLogTick));
+	mem_zero(m_aRhythmApplyDelaySum, sizeof(m_aRhythmApplyDelaySum));
+	mem_zero(m_aRhythmApplyDelayMax, sizeof(m_aRhythmApplyDelayMax));
+	mem_zero(m_aRhythmApplyDelayCount, sizeof(m_aRhythmApplyDelayCount));
 
 	if(!IsLobbyMap())
 	{
@@ -532,11 +536,12 @@ void CGameControllerMod::UpdateNotes()
 	{
 		if(CurrentTick - m_aRhythmLastLogTick[ClientId] < Server()->TickSpeed())
 			return;
-		if(m_aRhythmLateInputs[ClientId] == 0 && m_aRhythmSkippedInputs[ClientId] == 0)
+		if(m_aRhythmLateInputs[ClientId] == 0 && m_aRhythmSkippedInputs[ClientId] == 0 && m_aRhythmApplyDelayCount[ClientId] == 0)
 			return;
 
+		const int ApplyDelayAvg = m_aRhythmApplyDelayCount[ClientId] > 0 ? (int)(m_aRhythmApplyDelaySum[ClientId] / m_aRhythmApplyDelayCount[ClientId]) : 0;
 		char aBuf[256];
-		str_format(aBuf, sizeof(aBuf), "rhythm input jitter: cid=%d late=%d skipped=%d buffer_ticks=%d", ClientId, m_aRhythmLateInputs[ClientId], m_aRhythmSkippedInputs[ClientId], g_Config.m_SvRhythmJitterBufferTicks);
+		str_format(aBuf, sizeof(aBuf), "rhythm input jitter: cid=%d late=%d skipped=%d buffer_ticks=%d apply_delta_avg=%d apply_delta_max=%d", ClientId, m_aRhythmLateInputs[ClientId], m_aRhythmSkippedInputs[ClientId], g_Config.m_SvRhythmJitterBufferTicks, ApplyDelayAvg, m_aRhythmApplyDelayMax[ClientId]);
 		GameServer()->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "rhythm", aBuf);
 		m_aRhythmLastLogTick[ClientId] = CurrentTick;
 	};
@@ -552,15 +557,21 @@ void CGameControllerMod::UpdateNotes()
 			m_aScores[i] = {};
 			m_aRhythmInputQueue[i].clear();
 			m_aHasBufferedInputs[i] = false;
+			m_aBufferedInputReceiveTick[i] = -1;
 			m_aRhythmLateInputs[i] = 0;
 			m_aRhythmSkippedInputs[i] = 0;
 			aHasInput[i] = false;
+			m_aRhythmApplyDelaySum[i] = 0;
+			m_aRhythmApplyDelayMax[i] = 0;
+			m_aRhythmApplyDelayCount[i] = 0;
 			continue;
 		}
 
 		const CNetObj_PlayerInput RawInput = GameServer()->GetLastPlayerInput(i);
+		const int ReceiveTick = GameServer()->GetLastPlayerInputTick(i);
+		const int EffectiveReceiveTick = ReceiveTick >= 0 ? ReceiveTick : CurrentTick;
 		auto &Queue = m_aRhythmInputQueue[i];
-		Queue.push_back({CurrentTick + JitterBufferTicks, RawInput});
+		Queue.push_back({EffectiveReceiveTick + JitterBufferTicks, EffectiveReceiveTick, RawInput});
 		if((int)Queue.size() > MaxInputQueueSize)
 		{
 			Queue.pop_front();
@@ -571,11 +582,19 @@ void CGameControllerMod::UpdateNotes()
 		CNetObj_PlayerInput CurrentInput{};
 		bool HasBufferedInput = false;
 		int MaxLateTicks = 0;
+		int InputReceiveTick = CurrentTick;
 		while(!Queue.empty() && Queue.front().m_TargetTick <= CurrentTick)
 		{
 			HasBufferedInput = true;
 			CurrentInput = Queue.front().m_Input;
+			InputReceiveTick = Queue.front().m_ReceiveTick;
 			MaxLateTicks = maximum(MaxLateTicks, CurrentTick - Queue.front().m_TargetTick);
+			const int ApplyDelay = CurrentTick - Queue.front().m_ReceiveTick;
+			m_aRhythmApplyDelaySum[i] += ApplyDelay;
+			m_aRhythmApplyDelayMax[i] = maximum(m_aRhythmApplyDelayMax[i], ApplyDelay);
+			m_aRhythmApplyDelayCount[i]++;
+			if(ApplyDelay > JitterBufferTicks)
+				LogRhythmInputMetrics(i);
 			Queue.pop_front();
 		}
 
@@ -588,10 +607,12 @@ void CGameControllerMod::UpdateNotes()
 			}
 			m_aBufferedInputs[i] = CurrentInput;
 			m_aHasBufferedInputs[i] = true;
+			m_aBufferedInputReceiveTick[i] = InputReceiveTick;
 		}
 		else if(m_aHasBufferedInputs[i])
 		{
 			CurrentInput = m_aBufferedInputs[i];
+			InputReceiveTick = m_aBufferedInputReceiveTick[i] >= 0 ? m_aBufferedInputReceiveTick[i] : CurrentTick;
 		}
 		else
 		{
@@ -613,11 +634,11 @@ void CGameControllerMod::UpdateNotes()
 		const bool JumpHeld = (CurrentInput.m_Jump & 1) != 0;
 		const bool RightHeld = CurrentInput.m_Direction > 0;
 		if(LeftPressed || LeftHeld)
-			m_aLanePressTick[i][0] = CurrentTick;
+			m_aLanePressTick[i][0] = InputReceiveTick;
 		if(JumpPressed || JumpHeld)
-			m_aLanePressTick[i][1] = CurrentTick;
+			m_aLanePressTick[i][1] = InputReceiveTick;
 		if(RightPressed || RightHeld)
-			m_aLanePressTick[i][2] = CurrentTick;
+			m_aLanePressTick[i][2] = InputReceiveTick;
 
 		aCurrentInputs[i] = CurrentInput;
 		aHasInput[i] = true;

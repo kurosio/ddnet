@@ -73,12 +73,14 @@ class CGameControllerMod : public IGameController
 	struct SRhythmInput
 	{
 		int m_TargetTick;
+		int m_ReceiveTick;
 		CNetObj_PlayerInput m_Input;
 	};
 
 	CRhythmField *m_pRhythmField;
 	CNetObj_PlayerInput m_aPrevInputs[MAX_CLIENTS];
 	CNetObj_PlayerInput m_aBufferedInputs[MAX_CLIENTS];
+	int m_aBufferedInputReceiveTick[MAX_CLIENTS];
 	bool m_aHasBufferedInputs[MAX_CLIENTS];
 	int m_aLanePressTick[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
 	uint8_t m_aNoteLaneHitMask[MAX_CLIENTS];
@@ -87,6 +89,9 @@ class CGameControllerMod : public IGameController
 	int m_aRhythmLateInputs[MAX_CLIENTS];
 	int m_aRhythmSkippedInputs[MAX_CLIENTS];
 	int m_aRhythmLastLogTick[MAX_CLIENTS];
+	int64_t m_aRhythmApplyDelaySum[MAX_CLIENTS];
+	int m_aRhythmApplyDelayMax[MAX_CLIENTS];
+	int m_aRhythmApplyDelayCount[MAX_CLIENTS];
 	vec2 m_FieldAnchorPos;
 	bool m_FieldAnchorValid;
 
