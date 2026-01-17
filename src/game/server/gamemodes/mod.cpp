@@ -11,6 +11,7 @@
 #include <game/server/player.h>
 #include <game/server/entities/character.h>
 #include <game/server/entities/rhythm_field.h>
+#include <game/gamecore.h>
 
 // Exchange this to a string that identifies your game mode.
 // DM, TDM and CTF are reserved for teeworlds original modes.
@@ -51,6 +52,8 @@ CGameControllerMod::CGameControllerMod(class CGameContext *pGameServer) :
 	m_CurrentNote = 0;
 	m_NextSpawnNote = 0;
 	mem_zero(m_apRhythmFields, sizeof(m_apRhythmFields));
+	mem_zero(m_aPrevInputs, sizeof(m_aPrevInputs));
+	mem_zero(m_aLanePressTick, sizeof(m_aLanePressTick));
 
 	if(!IsLobbyMap())
 	{
@@ -327,7 +330,7 @@ void CGameControllerMod::UpdateNotes()
 
 		if(!m_apRhythmFields[i])
 		{
-				vec2 FieldPos = pChar->m_Pos + vec2(0.0f, SRhythmFieldConfig::s_FieldOffsetY);
+			vec2 FieldPos = pChar->m_Pos + vec2(0.0f, SRhythmFieldConfig::s_FieldOffsetY);
 			m_apRhythmFields[i] = GameServer()->CreateRhythmField(FieldPos, m_Meta.m_Bpm, FieldHitRadius);
 			if(m_apRhythmFields[i])
 				m_apRhythmFields[i]->SetAutoSpawn(false);
@@ -339,6 +342,24 @@ void CGameControllerMod::UpdateNotes()
 			m_apRhythmFields[i]->SetBpm(m_Meta.m_Bpm);
 			LeadTicks = maximum(LeadTicks, (int)std::round(m_apRhythmFields[i]->BeatIntervalTicks() * SRhythmFieldConfig::s_LeadBeats));
 		}
+
+		pChar->Freeze(1);
+
+		const CNetObj_PlayerInput CurrentInput = GameServer()->GetLastPlayerInput(i);
+		CNetObj_PlayerInput &PrevInput = m_aPrevInputs[i];
+
+		const bool LeftPressed = CurrentInput.m_Direction < 0 && PrevInput.m_Direction >= 0;
+		const bool RightPressed = CurrentInput.m_Direction > 0 && PrevInput.m_Direction <= 0;
+		const bool JumpPressed = CountInput(PrevInput.m_Jump, CurrentInput.m_Jump).m_Presses > 0;
+
+		if(LeftPressed)
+			m_aLanePressTick[i][0] = CurrentTick;
+		if(JumpPressed)
+			m_aLanePressTick[i][1] = CurrentTick;
+		if(RightPressed)
+			m_aLanePressTick[i][2] = CurrentTick;
+
+		PrevInput = CurrentInput;
 	}
 
 	if(LeadTicks <= 0)

@@ -2,10 +2,11 @@
 #define GAME_SERVER_GAMEMODES_MOD_H
 
 #include <game/server/gamecontroller.h>
+#include <game/server/entities/rhythm_field.h>
 
 #include <vector>
 
-class CRhythmField;
+struct CNetObj_PlayerInput;
 
 enum class EStageState : int
 {
@@ -48,6 +49,8 @@ class CGameControllerMod : public IGameController
 	int m_CurrentNote;
 	int m_NextSpawnNote;
 	CRhythmField *m_apRhythmFields[MAX_CLIENTS];
+	CNetObj_PlayerInput m_aPrevInputs[MAX_CLIENTS];
+	int m_aLanePressTick[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
 
 	bool LoadDanceMapData(const char *pMapName);
 
