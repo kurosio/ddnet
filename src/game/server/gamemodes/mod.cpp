@@ -350,20 +350,23 @@ void CGameControllerMod::UpdateNotes()
 		const CNote &Note = m_vNotes[m_NextSpawnNote];
 		const int NoteTick = UseTickNotes ? m_vNoteTicks[m_NextSpawnNote] : (m_RoundStartTick + round_to_int(Note.m_Time * Server()->TickSpeed()));
 
+		const int aLaneBits[3] = {
+			Note.m_StepBits & STEP_BIT_LEFT,
+			Note.m_StepBits & (STEP_BIT_UP | STEP_BIT_DOWN),
+			Note.m_StepBits & STEP_BIT_RIGHT,
+		};
+
 		for(int i = 0; i < MAX_CLIENTS; ++i)
 		{
 			CRhythmField *pField = m_apRhythmFields[i];
 			if(!pField)
 				continue;
 
-			if(Note.m_StepBits & STEP_BIT_LEFT)
-				pField->SpawnLaneArrow(0, NoteTick);
-			if(Note.m_StepBits & STEP_BIT_DOWN)
-				pField->SpawnLaneArrow(1, NoteTick);
-			if(Note.m_StepBits & STEP_BIT_UP)
-				pField->SpawnLaneArrow(2, NoteTick);
-			if(Note.m_StepBits & STEP_BIT_RIGHT)
-				pField->SpawnLaneArrow(3, NoteTick);
+			for(int LaneIndex = 0; LaneIndex < 3; ++LaneIndex)
+			{
+				if(aLaneBits[LaneIndex])
+					pField->SpawnLaneArrow(LaneIndex, NoteTick);
+			}
 		}
 
 		++m_NextSpawnNote;

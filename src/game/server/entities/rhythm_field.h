@@ -52,7 +52,7 @@ private:
 	std::vector<CRhythmArrow *> m_vArrows;
 	vec2 m_HitZonePos;
 	float m_HitZoneRadius;
-	int m_aLaserIds[6];
+	int m_HitLineLaserId;
 };
 
 #endif

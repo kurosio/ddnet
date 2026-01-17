@@ -13,10 +13,9 @@
 
 namespace
 {
-constexpr int s_LaneCount = 4;
+constexpr int s_LaneCount = 3;
 constexpr float s_LaneWidth = 64.0f;
 constexpr float s_FieldHeight = 128.0f;
-constexpr float s_HitLineDepth = 20.0f;
 } // namespace
 
 CRhythmField::CRhythmField(CGameWorld *pGameWorld, vec2 Pos, float Bpm, float HitRadius) :
@@ -31,8 +30,7 @@ CRhythmField::CRhythmField(CGameWorld *pGameWorld, vec2 Pos, float Bpm, float Hi
 	m_HitZonePos(Pos),
 	m_HitZoneRadius(HitRadius)
 {
-	for(int &Id : m_aLaserIds)
-		Id = -1;
+	m_HitLineLaserId = -1;
 	EnsureSnapIds();
 	UpdateBeatTiming();
 	m_NextBeatTick = Server()->Tick() + m_BeatIntervalTicks;
@@ -42,11 +40,8 @@ CRhythmField::CRhythmField(CGameWorld *pGameWorld, vec2 Pos, float Bpm, float Hi
 
 CRhythmField::~CRhythmField()
 {
-	for(int &Id : m_aLaserIds)
-	{
-		if(Id >= 0)
-			Server()->SnapFreeId(Id);
-	}
+	if(m_HitLineLaserId >= 0)
+		Server()->SnapFreeId(m_HitLineLaserId);
 }
 
 void CRhythmField::Reset()
@@ -91,21 +86,10 @@ void CRhythmField::Snap(int SnappingClient)
 	const bool Sixup = Server()->IsSixup(SnappingClient);
 	const CSnapContext Context(SnappingClientVersion, Sixup, SnappingClient);
 
-	const vec2 Top = m_HitZonePos - vec2(0.0f, m_ArrowTravelDistance);
-	const vec2 Bottom = m_HitZonePos + vec2(0.0f, s_HitLineDepth);
-	const float HalfWidth = s_LaneWidth * 2.0f;
-
-	for(int i = 0; i < 5; ++i)
-	{
-		const float X = m_HitZonePos.x - HalfWidth + s_LaneWidth * i;
-		const vec2 From(X, Top.y);
-		const vec2 To(X, Bottom.y);
-		GameServer()->SnapLaserObject(Context, m_aLaserIds[i], To, From, Server()->Tick(), -1, LASERTYPE_DOOR);
-	}
-
+	const float HalfWidth = s_LaneWidth * 1.5f;
 	const vec2 HitFrom(m_HitZonePos.x - HalfWidth, m_HitZonePos.y);
 	const vec2 HitTo(m_HitZonePos.x + HalfWidth, m_HitZonePos.y);
-	GameServer()->SnapLaserObject(Context, m_aLaserIds[5], HitTo, HitFrom, Server()->Tick(), -1, LASERTYPE_DOOR);
+	GameServer()->SnapLaserObject(Context, m_HitLineLaserId, HitTo, HitFrom, Server()->Tick(), -1, LASERTYPE_DOOR);
 }
 
 void CRhythmField::SetBpm(float Bpm)
@@ -127,11 +111,8 @@ void CRhythmField::SetHitZone(vec2 Pos)
 
 void CRhythmField::EnsureSnapIds()
 {
-	for(int &Id : m_aLaserIds)
-	{
-		if(Id < 0)
-			Id = Server()->SnapNewId();
-	}
+	if(m_HitLineLaserId < 0)
+		m_HitLineLaserId = Server()->SnapNewId();
 }
 
 void CRhythmField::RegisterArrow(CRhythmArrow *pArrow)
@@ -161,7 +142,7 @@ void CRhythmField::UpdateBeatTiming()
 
 void CRhythmField::SpawnLaneArrow(int LaneIndex, int HitTick)
 {
-	const float HalfWidth = s_LaneWidth * 2.0f;
+	const float HalfWidth = s_LaneWidth * 1.5f;
 	const float X = m_HitZonePos.x - HalfWidth + s_LaneWidth * (LaneIndex + 0.5f);
 	const vec2 Origin(X, m_HitZonePos.y - m_ArrowTravelDistance);
 	const vec2 Direction(0.0f, 1.0f);
