@@ -24,6 +24,8 @@ CRhythmField::CRhythmField(CGameWorld *pGameWorld, vec2 Pos, float Bpm, float Hi
 	m_HitZoneRadius(HitRadius)
 {
 	m_HitLineLaserId = -1;
+	for(int &Id : m_aGoodLineLaserIds)
+		Id = -1;
 	EnsureSnapIds();
 	UpdateBeatTiming();
 	m_NextBeatTick = Server()->Tick() + m_BeatIntervalTicks;
@@ -35,6 +37,11 @@ CRhythmField::~CRhythmField()
 {
 	if(m_HitLineLaserId >= 0)
 		Server()->SnapFreeId(m_HitLineLaserId);
+	for(int &Id : m_aGoodLineLaserIds)
+	{
+		if(Id >= 0)
+			Server()->SnapFreeId(Id);
+	}
 }
 
 void CRhythmField::Reset()
@@ -83,6 +90,14 @@ void CRhythmField::Snap(int SnappingClient)
 	const vec2 HitFrom(m_HitZonePos.x - HalfWidth, m_HitZonePos.y);
 	const vec2 HitTo(m_HitZonePos.x + HalfWidth, m_HitZonePos.y);
 	GameServer()->SnapLaserObject(Context, m_HitLineLaserId, HitTo, HitFrom, Server()->Tick(), -1, LASERTYPE_DOOR);
+
+	for(int i = 0; i < 2; ++i)
+	{
+		const float Offset = (i == 0 ? -SRhythmFieldConfig::s_GoodLineOffset : SRhythmFieldConfig::s_GoodLineOffset);
+		const vec2 GoodFrom(m_HitZonePos.x - HalfWidth, m_HitZonePos.y + Offset);
+		const vec2 GoodTo(m_HitZonePos.x + HalfWidth, m_HitZonePos.y + Offset);
+		GameServer()->SnapLaserObject(Context, m_aGoodLineLaserIds[i], GoodTo, GoodFrom, Server()->Tick(), -1, LASERTYPE_DOOR);
+	}
 }
 
 void CRhythmField::SetBpm(float Bpm)
@@ -106,6 +121,11 @@ void CRhythmField::EnsureSnapIds()
 {
 	if(m_HitLineLaserId < 0)
 		m_HitLineLaserId = Server()->SnapNewId();
+	for(int &Id : m_aGoodLineLaserIds)
+	{
+		if(Id < 0)
+			Id = Server()->SnapNewId();
+	}
 }
 
 void CRhythmField::RegisterArrow(CRhythmArrow *pArrow)

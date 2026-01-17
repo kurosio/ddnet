@@ -23,6 +23,7 @@ struct SRhythmFieldConfig
 	static constexpr int s_GoodWindowTicks = 4;
 	static constexpr int s_BadWindowTicks = 6;
 	static constexpr int s_HoldWindowTicks = 12;
+	static constexpr float s_GoodLineOffset = 24.0f;
 	static constexpr int s_InvalidPressTick = -1000000;
 };
 
@@ -70,6 +71,7 @@ private:
 	vec2 m_HitZonePos;
 	float m_HitZoneRadius;
 	int m_HitLineLaserId;
+	int m_aGoodLineLaserIds[2];
 };
 
 #endif
