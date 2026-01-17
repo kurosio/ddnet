@@ -1471,6 +1471,11 @@ void CGameContext::OnClientDirectInput(int ClientId, const void *pInput)
 	if(!m_World.m_Paused)
 		m_apPlayers[ClientId]->OnDirectInput(pPlayerInput);
 
+	// beat dance
+	if(!m_World.m_Paused)
+		m_pController->OnDirectInput(ClientId, pPlayerInput);
+	//
+
 	int Flags = pPlayerInput->m_PlayerFlags;
 	if((Flags & 256) || (Flags & 512))
 	{

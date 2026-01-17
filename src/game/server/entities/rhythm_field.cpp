@@ -183,3 +183,16 @@ void CRhythmField::HideArrowForClient(int LaneIndex, int HitTick, int ClientId)
 		pArrow->HideForClient(ClientId);
 	}
 }
+
+bool CRhythmField::IsHiddenArrowForClient(int LaneIndex, int HitTick, int ClientId) const
+{
+	for(const CRhythmArrow *pArrow : m_vArrows)
+	{
+		if(!pArrow)
+			continue;
+		if(pArrow->HitTick() != HitTick || pArrow->LaneIndex() != LaneIndex)
+			continue;
+		return pArrow->IsHiddenForClient(ClientId);
+	}
+	return false;
+}

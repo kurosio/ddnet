@@ -72,6 +72,11 @@ void CRhythmArrow::HideForClient(int ClientId)
 	m_HiddenMask.set(ClientId);
 }
 
+bool CRhythmArrow::IsHiddenForClient(int ClientId) const
+{
+	return m_HiddenMask.test(ClientId);
+}
+
 CRhythmArrow::~CRhythmArrow()
 {
 	if(m_pField)

@@ -43,6 +43,7 @@ public:
 	int BeatIntervalTicks() const { return m_BeatIntervalTicks; }
 	void SpawnLaneArrow(int LaneIndex, int HitTick);
 	void HideArrowForClient(int LaneIndex, int HitTick, int ClientId);
+	bool IsHiddenArrowForClient(int LaneIndex, int HitTick, int ClientId) const;
 
 	void RegisterArrow(CRhythmArrow *pArrow);
 	void UnregisterArrow(CRhythmArrow *pArrow);

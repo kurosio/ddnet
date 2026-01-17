@@ -83,6 +83,9 @@ class CGameControllerMod : public IGameController
 	int m_aBufferedInputReceiveTick[MAX_CLIENTS];
 	bool m_aHasBufferedInputs[MAX_CLIENTS];
 	int m_aLanePressTick[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
+	int m_aLaneLastHitTick[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
+	int m_aLanePressId[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
+	int m_aLanePressUsedId[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
 	uint8_t m_aNoteLaneHitMask[MAX_CLIENTS];
 	SRhythmScore m_aScores[MAX_CLIENTS];
 	std::deque<SRhythmInput> m_aRhythmInputQueue[MAX_CLIENTS];
@@ -97,6 +100,7 @@ class CGameControllerMod : public IGameController
 
 	bool LoadDanceMapData(const char *pMapName);
 	bool FindFieldAnchorFromMap(vec2 &OutPos) const;
+	void ScoreHit(int ClientId, int RatingDelta);
 
 public:
 	CGameControllerMod(class CGameContext *pGameServer);
@@ -105,6 +109,7 @@ public:
 	void Tick() override;
 	void OnPlayerConnect(class CPlayer *pPlayer) override;
 	void Snap(int SnappingClient) override;
+	void OnDirectInput(int ClientId, const CNetObj_PlayerInput *pNewInput) override;
 
 	void TickState();
 	void ChangeState(EStageState State);

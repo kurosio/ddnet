@@ -143,6 +143,7 @@ public:
 	virtual void Tick();
 
 	virtual void Snap(int SnappingClient);
+	virtual void OnDirectInput(int ClientId, const CNetObj_PlayerInput *pNewInput) {}
 
 	/**
 	 * Sets the score value that will be shown in the scoreboard.

@@ -22,6 +22,7 @@ public:
 
 	void DetachField();
 	void HideForClient(int ClientId);
+	bool IsHiddenForClient(int ClientId) const;
 
 	vec2 Direction() const { return m_Direction; }
 	float Phase() const { return m_Phase; }
