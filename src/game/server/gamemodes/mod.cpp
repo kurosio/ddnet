@@ -436,16 +436,16 @@ void CGameControllerMod::UpdateNotes()
 					(LaneIndex == 0 && CurrentInput.m_Direction < 0) ||
 					(LaneIndex == 1 && (CurrentInput.m_Jump & 1)) ||
 					(LaneIndex == 2 && CurrentInput.m_Direction > 0);
-				const int Delta = PressTick != SRhythmFieldConfig::s_InvalidPressTick ? std::abs(PressTick - NoteTick) : std::numeric_limits<int>::max();
-				const bool Hit = (PressTick != SRhythmFieldConfig::s_InvalidPressTick && Delta <= SRhythmFieldConfig::s_HitWindowTicks) ||
-					(Held && std::abs(CurrentTick - NoteTick) <= SRhythmFieldConfig::s_HitWindowTicks);
+				const int PressDelta = PressTick != SRhythmFieldConfig::s_InvalidPressTick ? std::abs(PressTick - NoteTick) : std::numeric_limits<int>::max();
+				const int HoldDelta = Held ? std::abs(CurrentTick - NoteTick) : std::numeric_limits<int>::max();
+				const int RatingDelta = minimum(PressDelta, HoldDelta);
+				const bool Hit = RatingDelta <= SRhythmFieldConfig::s_HoldWindowTicks;
 
 				if(Hit)
 				{
 					const float X = HitPos.x - HalfWidth + SRhythmFieldConfig::s_LaneWidth * (LaneIndex + 0.5f);
 					GameServer()->CreateExplosion(vec2(X, HitPos.y), -1, WEAPON_GRENADE, true, -1);
 					m_aLanePressTick[i][LaneIndex] = SRhythmFieldConfig::s_InvalidPressTick;
-					const int RatingDelta = (Delta != std::numeric_limits<int>::max()) ? Delta : std::abs(CurrentTick - NoteTick);
 					if(RatingDelta <= SRhythmFieldConfig::s_PerfectWindowTicks)
 						m_aScores[i].m_Perfect++;
 					else if(RatingDelta <= SRhythmFieldConfig::s_GoodWindowTicks)
@@ -455,7 +455,7 @@ void CGameControllerMod::UpdateNotes()
 					else
 						m_aScores[i].m_Miss++;
 				}
-				else
+				else if(CurrentTick > NoteTick + SRhythmFieldConfig::s_HoldWindowTicks)
 				{
 					m_aScores[i].m_Miss++;
 				}
