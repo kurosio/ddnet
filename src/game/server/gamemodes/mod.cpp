@@ -64,6 +64,7 @@ CGameControllerMod::CGameControllerMod(class CGameContext *pGameServer) :
 	m_FieldAnchorPos = vec2(0.0f, 0.0f);
 	m_FieldAnchorValid = false;
 	mem_zero(m_aPrevInputs, sizeof(m_aPrevInputs));
+	mem_zero(m_aLanePressTick, sizeof(m_aLanePressTick));
 	mem_zero(m_aNoteLaneHitMask, sizeof(m_aNoteLaneHitMask));
 	mem_zero(m_aScores, sizeof(m_aScores));
 
@@ -476,13 +477,15 @@ void CGameControllerMod::UpdateNotes()
 {
 	constexpr float FieldHitRadius = 32.0f;
 	constexpr int LaneCount = SRhythmFieldConfig::s_LaneCount;
+	constexpr int InputBufferTicks = 2;
 
 	const int CurrentTick = Server()->Tick();
 	const double ElapsedSec = (CurrentTick - m_RoundStartTick) / static_cast<double>(Server()->TickSpeed());
 	const bool UseTickNotes = m_vNoteTicks.size() == m_vNotes.size();
 	int LeadTicks = 0;
-	bool aLanePressed[MAX_CLIENTS][LaneCount];
-	mem_zero(aLanePressed, sizeof(aLanePressed));
+	CNetObj_PlayerInput aCurrentInputs[MAX_CLIENTS];
+	bool aHasInput[MAX_CLIENTS];
+	mem_zero(aHasInput, sizeof(aHasInput));
 
 	auto ScoreHit = [this](int ClientId, int RatingDelta)
 	{
@@ -502,23 +505,34 @@ void CGameControllerMod::UpdateNotes()
 		if(!pChar)
 		{
 			m_aPrevInputs[i] = CNetObj_PlayerInput{};
+			mem_zero(m_aLanePressTick[i], sizeof(m_aLanePressTick[i]));
 			m_aNoteLaneHitMask[i] = 0;
 			m_aScores[i] = {};
+			aHasInput[i] = false;
 			continue;
 		}
 
 		const CNetObj_PlayerInput CurrentInput = GameServer()->GetLastPlayerInput(i);
 		CNetObj_PlayerInput &PrevInput = m_aPrevInputs[i];
 
-		const bool LeftPressed = CurrentInput.m_Direction < 0 && PrevInput.m_Direction >= 0;
-		const bool RightPressed = CurrentInput.m_Direction > 0 && PrevInput.m_Direction <= 0;
+		const bool LeftPressed = (CurrentInput.m_Direction < 0 && PrevInput.m_Direction >= 0) ||
+			(CurrentInput.m_Direction == 0 && PrevInput.m_Direction > 0);
+		const bool RightPressed = (CurrentInput.m_Direction > 0 && PrevInput.m_Direction <= 0) ||
+			(CurrentInput.m_Direction == 0 && PrevInput.m_Direction < 0);
 		const bool JumpPressed = CountInput(PrevInput.m_Jump, CurrentInput.m_Jump).m_Presses > 0;
 
-		aLanePressed[i][0] = LeftPressed;
-		aLanePressed[i][1] = JumpPressed;
-		aLanePressed[i][2] = RightPressed;
+		const bool LeftHeld = CurrentInput.m_Direction < 0;
+		const bool JumpHeld = (CurrentInput.m_Jump & 1) != 0;
+		const bool RightHeld = CurrentInput.m_Direction > 0;
+		if(LeftPressed || LeftHeld)
+			m_aLanePressTick[i][0] = CurrentTick + InputBufferTicks;
+		if(JumpPressed || JumpHeld)
+			m_aLanePressTick[i][1] = CurrentTick + InputBufferTicks;
+		if(RightPressed || RightHeld)
+			m_aLanePressTick[i][2] = CurrentTick + InputBufferTicks;
 
-		PrevInput = CurrentInput;
+		aCurrentInputs[i] = CurrentInput;
+		aHasInput[i] = true;
 	}
 
 	if(m_FieldAnchorValid && !m_pRhythmField)
@@ -585,14 +599,10 @@ void CGameControllerMod::UpdateNotes()
 			if(!m_pRhythmField)
 				continue;
 
-			const CNetObj_PlayerInput CurrentInput = GameServer()->GetLastPlayerInput(i);
+			if(!aHasInput[i])
+				continue;
 			const vec2 HitPos = m_pRhythmField->HitZonePos();
 			const float HalfWidth = SRhythmFieldConfig::s_LaneWidth * 1.5f;
-			const bool aHeld[LaneCount] = {
-				CurrentInput.m_Direction < 0,
-				(CurrentInput.m_Jump & 1) != 0,
-				CurrentInput.m_Direction > 0,
-			};
 
 			for(int LaneIndex = 0; LaneIndex < LaneCount; ++LaneIndex)
 			{
@@ -603,7 +613,8 @@ void CGameControllerMod::UpdateNotes()
 				if(m_aNoteLaneHitMask[i] & LaneMask)
 					continue;
 
-				if(aLanePressed[i][LaneIndex] || aHeld[LaneIndex])
+				const bool LaneActive = CurrentTick <= m_aLanePressTick[i][LaneIndex];
+				if(LaneActive)
 				{
 					const int RatingDelta = std::abs(CurrentTick - NoteTick);
 					if(RatingDelta > SRhythmFieldConfig::s_BadWindowTicks)
@@ -633,5 +644,11 @@ void CGameControllerMod::UpdateNotes()
 		++m_CurrentNote;
 		for(int i = 0; i < MAX_CLIENTS; ++i)
 			m_aNoteLaneHitMask[i] = 0;
+	}
+
+	for(int i = 0; i < MAX_CLIENTS; ++i)
+	{
+		if(aHasInput[i])
+			m_aPrevInputs[i] = aCurrentInputs[i];
 	}
 }

@@ -68,6 +68,7 @@ class CGameControllerMod : public IGameController
 
 	CRhythmField *m_pRhythmField;
 	CNetObj_PlayerInput m_aPrevInputs[MAX_CLIENTS];
+	int m_aLanePressTick[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
 	uint8_t m_aNoteLaneHitMask[MAX_CLIENTS];
 	SRhythmScore m_aScores[MAX_CLIENTS];
 	vec2 m_FieldAnchorPos;
