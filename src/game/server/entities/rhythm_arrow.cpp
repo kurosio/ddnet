@@ -57,7 +57,7 @@ void CRhythmArrow::Snap(int SnappingClient)
 	const vec2 From = m_Pos - m_Direction * 12.0f;
 	const vec2 To = m_Pos + m_Direction * 12.0f;
 
-	GameServer()->SnapLaserObject(CSnapContext(SnappingClientVersion, Sixup, SnappingClient), GetId(), To, From, m_SpawnTick, -1, LASERTYPE_GUN);
+	GameServer()->SnapLaserObject(CSnapContext(SnappingClientVersion, Sixup, SnappingClient), GetId(), To, From, m_SpawnTick, -1, LASERTYPE_FREEZE);
 }
 
 void CRhythmArrow::DetachField()

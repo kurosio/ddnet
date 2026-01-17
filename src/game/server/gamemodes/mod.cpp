@@ -337,7 +337,7 @@ void CGameControllerMod::UpdateNotes()
 		{
 			m_apRhythmFields[i]->SetHitZone(pChar->m_Pos + vec2(0.0f, FieldOffsetY));
 			m_apRhythmFields[i]->SetBpm(m_Meta.m_Bpm);
-			LeadTicks = maximum(LeadTicks, m_apRhythmFields[i]->BeatIntervalTicks());
+			LeadTicks = maximum(LeadTicks, m_apRhythmFields[i]->BeatIntervalTicks() * 2);
 		}
 	}
 

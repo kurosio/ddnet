@@ -14,8 +14,9 @@
 namespace
 {
 constexpr int s_LaneCount = 3;
-constexpr float s_LaneWidth = 64.0f;
-constexpr float s_FieldHeight = 128.0f;
+constexpr float s_LaneWidth = 96.0f;
+constexpr float s_FieldHeight = 256.0f;
+constexpr float s_SpawnOffset = 64.0f;
 } // namespace
 
 CRhythmField::CRhythmField(CGameWorld *pGameWorld, vec2 Pos, float Bpm, float HitRadius) :
@@ -144,7 +145,7 @@ void CRhythmField::SpawnLaneArrow(int LaneIndex, int HitTick)
 {
 	const float HalfWidth = s_LaneWidth * 1.5f;
 	const float X = m_HitZonePos.x - HalfWidth + s_LaneWidth * (LaneIndex + 0.5f);
-	const vec2 Origin(X, m_HitZonePos.y - m_ArrowTravelDistance);
+	const vec2 Origin(X, m_HitZonePos.y - m_ArrowTravelDistance - s_SpawnOffset);
 	const vec2 Direction(0.0f, 1.0f);
 
 	SpawnArrow(Origin, Direction, HitTick);
