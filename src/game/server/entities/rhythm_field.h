@@ -24,7 +24,7 @@ public:
 	void SetAutoSpawn(bool Auto);
 	void SetHitZone(vec2 Pos);
 	int BeatIntervalTicks() const { return m_BeatIntervalTicks; }
-	void SpawnArrow(vec2 Direction, int HitTick);
+	void SpawnLaneArrow(int LaneIndex, int HitTick);
 
 	void RegisterArrow(CRhythmArrow *pArrow);
 	void UnregisterArrow(CRhythmArrow *pArrow);
@@ -38,6 +38,7 @@ public:
 private:
 	void EnsureSnapIds();
 	void UpdateBeatTiming();
+	void SpawnArrow(vec2 Origin, vec2 Direction, int HitTick);
 	void SpawnArrow();
 
 	float m_Bpm;
@@ -52,8 +53,6 @@ private:
 	vec2 m_HitZonePos;
 	float m_HitZoneRadius;
 	int m_aLaserIds[6];
-	int m_aPickupIds[4];
-	int m_aProjectileIds[4];
 };
 
 #endif

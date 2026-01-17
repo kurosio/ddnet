@@ -357,13 +357,13 @@ void CGameControllerMod::UpdateNotes()
 				continue;
 
 			if(Note.m_StepBits & STEP_BIT_LEFT)
-				pField->SpawnArrow(vec2(-1.0f, 0.0f), NoteTick);
-			if(Note.m_StepBits & STEP_BIT_RIGHT)
-				pField->SpawnArrow(vec2(1.0f, 0.0f), NoteTick);
-			if(Note.m_StepBits & STEP_BIT_UP)
-				pField->SpawnArrow(vec2(0.0f, -1.0f), NoteTick);
+				pField->SpawnLaneArrow(0, NoteTick);
 			if(Note.m_StepBits & STEP_BIT_DOWN)
-				pField->SpawnArrow(vec2(0.0f, 1.0f), NoteTick);
+				pField->SpawnLaneArrow(1, NoteTick);
+			if(Note.m_StepBits & STEP_BIT_UP)
+				pField->SpawnLaneArrow(2, NoteTick);
+			if(Note.m_StepBits & STEP_BIT_RIGHT)
+				pField->SpawnLaneArrow(3, NoteTick);
 		}
 
 		++m_NextSpawnNote;
