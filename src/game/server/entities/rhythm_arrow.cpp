@@ -55,16 +55,9 @@ void CRhythmArrow::Snap(int SnappingClient)
 	if(SnappingClient >= 0 && m_HiddenMask.test(SnappingClient))
 		return;
 
-	CNetObj_Projectile *pProj = Server()->SnapNewItem<CNetObj_Projectile>(GetId());
-	if(!pProj)
-		return;
-
-	pProj->m_X = (int)m_Origin.x;
-	pProj->m_Y = (int)m_Origin.y;
-	pProj->m_VelX = (int)(m_Direction.x * m_VelScale * 100.0f);
-	pProj->m_VelY = (int)(m_Direction.y * m_VelScale * 100.0f);
-	pProj->m_StartTick = m_SpawnTick;
-	pProj->m_Type = WEAPON_GUN;
+	const int SnappingClientVersion = GameServer()->GetClientVersion(SnappingClient);
+	const bool Sixup = Server()->IsSixup(SnappingClient);
+	GameServer()->SnapPickup(CSnapContext(SnappingClientVersion, Sixup, SnappingClient), GetId(), m_Pos, POWERUP_HEALTH, -1, -1, 0);
 }
 
 void CRhythmArrow::DetachField()
