@@ -4,6 +4,7 @@
 #include <game/server/gamecontroller.h>
 #include <game/server/entities/rhythm_field.h>
 
+#include <deque>
 #include <vector>
 
 struct CNetObj_PlayerInput;
@@ -59,12 +60,23 @@ class CGameControllerMod : public IGameController
 		int m_Bad;
 		int m_Miss;
 	};
+	struct SRhythmInput
+	{
+		int m_TargetTick;
+		CNetObj_PlayerInput m_Input;
+	};
 
 	CRhythmField *m_pRhythmField;
 	CNetObj_PlayerInput m_aPrevInputs[MAX_CLIENTS];
+	CNetObj_PlayerInput m_aBufferedInputs[MAX_CLIENTS];
+	bool m_aHasBufferedInputs[MAX_CLIENTS];
 	int m_aLanePressTick[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
 	uint8_t m_aNoteLaneHitMask[MAX_CLIENTS];
 	SRhythmScore m_aScores[MAX_CLIENTS];
+	std::deque<SRhythmInput> m_aRhythmInputQueue[MAX_CLIENTS];
+	int m_aRhythmLateInputs[MAX_CLIENTS];
+	int m_aRhythmSkippedInputs[MAX_CLIENTS];
+	int m_aRhythmLastLogTick[MAX_CLIENTS];
 	vec2 m_FieldAnchorPos;
 	bool m_FieldAnchorValid;
 
