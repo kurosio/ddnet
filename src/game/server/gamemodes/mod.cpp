@@ -309,15 +309,18 @@ bool CGameControllerMod::LoadDanceMapData(const char *pMapName)
 
 	m_vNotes.clear();
 	m_vNoteTicks.clear();
+	m_vHolds.clear();
 	mem_zero(&m_Meta, sizeof(m_Meta));
 
 	const json_value &Root = *pJsonData;
 	const json_value &Meta = Root["meta"];
 	const json_value &Notes = Root["notes"];
+	const json_value &Holds = Root["holds"];
 
 	Error = false;
 	Error = Error || Meta.type != json_object;
 	Error = Error || Notes.type != json_array;
+	Error = Error || Holds.type != json_array;
 	if(Error)
 	{
 		json_value_free(pJsonData);
@@ -329,6 +332,8 @@ bool CGameControllerMod::LoadDanceMapData(const char *pMapName)
 	const json_value &Bpm = Meta["bpm"];
 	const json_value &DurationSeconds = Meta["duration_seconds"];
 	const json_value &NotesCount = Meta["notes_count"];
+	const json_value &TapCount = Meta["tap_count"];
+	const json_value &HoldsCount = Meta["holds_count"];
 
 	Error = false;
 	Error = Error || AudioFile.type != json_string;
@@ -336,6 +341,8 @@ bool CGameControllerMod::LoadDanceMapData(const char *pMapName)
 	Error = Error || Bpm.type != json_double;
 	Error = Error || DurationSeconds.type != json_double;
 	Error = Error || NotesCount.type != json_integer;
+	Error = Error || TapCount.type != json_integer;
+	Error = Error || HoldsCount.type != json_integer;
 	if(Error)
 	{
 		json_value_free(pJsonData);
@@ -347,6 +354,8 @@ bool CGameControllerMod::LoadDanceMapData(const char *pMapName)
 	m_Meta.m_Bpm = (float)json_double_get(&Bpm);
 	m_Meta.m_DurationSeconds = (float)json_double_get(&DurationSeconds);
 	m_Meta.m_NotesCount = json_int_get(&NotesCount);
+	m_Meta.m_TapCount = json_int_get(&TapCount);
+	m_Meta.m_HoldsCount = json_int_get(&HoldsCount);
 
 	for(unsigned i = 0; i < Notes.u.array.length; ++i)
 	{
@@ -384,11 +393,55 @@ bool CGameControllerMod::LoadDanceMapData(const char *pMapName)
 		m_vNotes.push_back(ParsedNote);
 	}
 
+	for(unsigned i = 0; i < Holds.u.array.length; ++i)
+	{
+		const json_value &Hold = Holds[i];
+		const json_value &Lane = Hold["lane"];
+		const json_value &T = Hold["t"];
+		const json_value &TEnd = Hold["t_end"];
+
+		Error = false;
+		Error = Error || Hold.type != json_object;
+		Error = Error || Lane.type != json_integer;
+		Error = Error || T.type != json_double;
+		Error = Error || TEnd.type != json_double;
+		if(Error)
+		{
+			json_value_free(pJsonData);
+			return false;
+		}
+
+		const int LaneIndex = json_int_get(&Lane);
+		const double HoldTime = json_double_get(&T);
+		const double HoldTimeEnd = json_double_get(&TEnd);
+		Error = Error || LaneIndex < 0 || LaneIndex >= SRhythmFieldConfig::s_LaneCount;
+		Error = Error || !std::isfinite(HoldTime) || HoldTime < 0.0;
+		Error = Error || !std::isfinite(HoldTimeEnd) || HoldTimeEnd < 0.0;
+		Error = Error || HoldTimeEnd < HoldTime;
+		if(Error)
+		{
+			json_value_free(pJsonData);
+			return false;
+		}
+
+		CHold ParsedHold{};
+		ParsedHold.m_Lane = LaneIndex;
+		ParsedHold.m_Time = HoldTime;
+		ParsedHold.m_TimeEnd = HoldTimeEnd;
+		m_vHolds.push_back(ParsedHold);
+	}
+
 	std::stable_sort(m_vNotes.begin(), m_vNotes.end(), [](const CNote &Left, const CNote &Right)
 	{
 		return Left.m_Time < Right.m_Time;
 	});
-	m_Meta.m_NotesCount = static_cast<int>(m_vNotes.size());
+	std::stable_sort(m_vHolds.begin(), m_vHolds.end(), [](const CHold &Left, const CHold &Right)
+	{
+		return Left.m_Time < Right.m_Time;
+	});
+	m_Meta.m_TapCount = static_cast<int>(m_vNotes.size());
+	m_Meta.m_HoldsCount = static_cast<int>(m_vHolds.size());
+	m_Meta.m_NotesCount = m_Meta.m_TapCount + m_Meta.m_HoldsCount;
 
 	json_value_free(pJsonData);
 	return true;

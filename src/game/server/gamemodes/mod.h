@@ -34,6 +34,8 @@ class CGameControllerMod : public IGameController
 		float m_Bpm;
 		float m_DurationSeconds;
 		int m_NotesCount;
+		int m_TapCount;
+		int m_HoldsCount;
 	};
 
 	struct CNote
@@ -42,9 +44,17 @@ class CGameControllerMod : public IGameController
 		uint8_t m_StepBits;
 	};
 
+	struct CHold
+	{
+		int m_Lane;
+		double m_Time;
+		double m_TimeEnd;
+	};
+
 	EStageState m_State;
 	CMapMeta m_Meta;
 	std::vector<CNote> m_vNotes;
+	std::vector<CHold> m_vHolds;
 	std::vector<int> m_vNoteTicks;
 	int m_CurrentNote;
 	int m_NextSpawnNote;
