@@ -310,7 +310,6 @@ bool CGameControllerMod::LoadDanceMapData(const char *pMapName)
 
 	m_vNotes.clear();
 	m_vNoteTicks.clear();
-	m_vHolds.clear();
 	mem_zero(&m_Meta, sizeof(m_Meta));
 
 	const json_value &Root = *pJsonData;
@@ -384,6 +383,8 @@ bool CGameControllerMod::LoadDanceMapData(const char *pMapName)
 
 		CNote ParsedNote{};
 		ParsedNote.m_Time = NoteTime;
+		ParsedNote.m_TimeEnd = NoteTime;
+		ParsedNote.m_IsHold = false;
 
 		if(!ParseStepBits(StepBits, &ParsedNote.m_StepBits))
 		{
@@ -397,25 +398,23 @@ bool CGameControllerMod::LoadDanceMapData(const char *pMapName)
 	for(unsigned i = 0; i < Holds.u.array.length; ++i)
 	{
 		const json_value &Hold = Holds[i];
-		const json_value &Lane = Hold["lane"];
 		const json_value &T = Hold["t"];
 		const json_value &TEnd = Hold["t_end"];
+		const json_value &StepBits = Hold["step_bits"];
 
 		Error = false;
 		Error = Error || Hold.type != json_object;
-		Error = Error || Lane.type != json_integer;
 		Error = Error || T.type != json_double;
 		Error = Error || TEnd.type != json_double;
+		Error = Error || StepBits.type == json_none;
 		if(Error)
 		{
 			json_value_free(pJsonData);
 			return false;
 		}
 
-		const int LaneIndex = json_int_get(&Lane);
 		const double HoldTime = json_double_get(&T);
 		const double HoldTimeEnd = json_double_get(&TEnd);
-		Error = Error || LaneIndex < 0 || LaneIndex >= SRhythmFieldConfig::s_LaneCount;
 		Error = Error || !std::isfinite(HoldTime) || HoldTime < 0.0;
 		Error = Error || !std::isfinite(HoldTimeEnd) || HoldTimeEnd < 0.0;
 		Error = Error || HoldTimeEnd < HoldTime;
@@ -425,24 +424,30 @@ bool CGameControllerMod::LoadDanceMapData(const char *pMapName)
 			return false;
 		}
 
-		CHold ParsedHold{};
-		ParsedHold.m_Lane = LaneIndex;
+		CNote ParsedHold{};
 		ParsedHold.m_Time = HoldTime;
 		ParsedHold.m_TimeEnd = HoldTimeEnd;
-		m_vHolds.push_back(ParsedHold);
+		ParsedHold.m_IsHold = true;
+
+		if(!ParseStepBits(StepBits, &ParsedHold.m_StepBits))
+		{
+			json_value_free(pJsonData);
+			return false;
+		}
+
+		m_vNotes.push_back(ParsedHold);
 	}
 
 	std::stable_sort(m_vNotes.begin(), m_vNotes.end(), [](const CNote &Left, const CNote &Right)
 	{
 		return Left.m_Time < Right.m_Time;
 	});
-	std::stable_sort(m_vHolds.begin(), m_vHolds.end(), [](const CHold &Left, const CHold &Right)
+	m_Meta.m_HoldsCount = static_cast<int>(std::count_if(m_vNotes.begin(), m_vNotes.end(), [](const CNote &Note)
 	{
-		return Left.m_Time < Right.m_Time;
-	});
-	m_Meta.m_TapCount = static_cast<int>(m_vNotes.size());
-	m_Meta.m_HoldsCount = static_cast<int>(m_vHolds.size());
-	m_Meta.m_NotesCount = m_Meta.m_TapCount + m_Meta.m_HoldsCount;
+		return Note.m_IsHold;
+	}));
+	m_Meta.m_TapCount = static_cast<int>(m_vNotes.size()) - m_Meta.m_HoldsCount;
+	m_Meta.m_NotesCount = static_cast<int>(m_vNotes.size());
 
 	json_value_free(pJsonData);
 	return true;
@@ -561,6 +566,12 @@ void CGameControllerMod::UpdateNotes()
 		const CNote &Note = m_vNotes[m_NextSpawnNote];
 		const int NoteTick = UseTickNotes ? m_vNoteTicks[m_NextSpawnNote] : NoteTimeToTick(m_RoundStartTick, Note.m_Time, Server()->TickSpeed());
 
+		if(Note.m_IsHold)
+		{
+			++m_NextSpawnNote;
+			continue;
+		}
+
 		const int aLaneBits[LaneCount] = {
 			Note.m_StepBits & STEP_BIT_LEFT,
 			Note.m_StepBits & (STEP_BIT_UP | STEP_BIT_DOWN),
@@ -586,6 +597,12 @@ void CGameControllerMod::UpdateNotes()
 
 		if(CurrentTick < NoteTick - SRhythmFieldConfig::s_BadWindowTicks)
 			break;
+
+		if(Note.m_IsHold)
+		{
+			++m_CurrentNote;
+			continue;
+		}
 
 		const bool WindowExpired = CurrentTick > NoteTick + SRhythmFieldConfig::s_BadWindowTicks;
 		const int aLaneBits[LaneCount] = {

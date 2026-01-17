@@ -41,20 +41,14 @@ class CGameControllerMod : public IGameController
 	struct CNote
 	{
 		double m_Time;
-		uint8_t m_StepBits;
-	};
-
-	struct CHold
-	{
-		int m_Lane;
-		double m_Time;
 		double m_TimeEnd;
+		uint8_t m_StepBits;
+		bool m_IsHold;
 	};
 
 	EStageState m_State;
 	CMapMeta m_Meta;
 	std::vector<CNote> m_vNotes;
-	std::vector<CHold> m_vHolds;
 	std::vector<int> m_vNoteTicks;
 	int m_CurrentNote;
 	int m_NextSpawnNote;
