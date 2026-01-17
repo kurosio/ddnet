@@ -1,8 +1,9 @@
 #include "mod.h"
 
 #include <base/math.h>
-#include <cmath>
 #include <base/system.h>
+#include <algorithm>
+#include <cmath>
 
 #include <engine/shared/config.h>
 #include <engine/shared/json.h>
@@ -40,6 +41,11 @@ namespace
 		}
 		*pOut = Bits;
 		return true;
+	}
+
+	int NoteTimeToTick(int RoundStartTick, double NoteTime, int TickSpeed)
+	{
+		return RoundStartTick + round_to_int(NoteTime * TickSpeed);
 	}
 }
 
@@ -175,8 +181,7 @@ void CGameControllerMod::ChangeState(EStageState State)
 			m_vNoteTicks.reserve(m_vNotes.size());
 			for(const auto &Note : m_vNotes)
 			{
-				const int NoteTick = m_RoundStartTick + round_to_int(Note.m_Time * Server()->TickSpeed());
-				m_vNoteTicks.push_back(NoteTick);
+				m_vNoteTicks.push_back(NoteTimeToTick(m_RoundStartTick, Note.m_Time, Server()->TickSpeed()));
 			}
 			for(int i = 0; i < MAX_CLIENTS; ++i)
 			{
@@ -291,8 +296,16 @@ bool CGameControllerMod::LoadDanceMapData(const char *pMapName)
 			return false;
 		}
 
+		const double NoteTime = json_double_get(&T);
+		Error = Error || !std::isfinite(NoteTime) || NoteTime < 0.0;
+		if(Error)
+		{
+			json_value_free(pJsonData);
+			return false;
+		}
+
 		CNote ParsedNote{};
-		ParsedNote.m_Time = (float)json_double_get(&T);
+		ParsedNote.m_Time = NoteTime;
 
 		if(!ParseStepBits(StepBits, &ParsedNote.m_StepBits))
 		{
@@ -302,6 +315,12 @@ bool CGameControllerMod::LoadDanceMapData(const char *pMapName)
 
 		m_vNotes.push_back(ParsedNote);
 	}
+
+	std::stable_sort(m_vNotes.begin(), m_vNotes.end(), [](const CNote &Left, const CNote &Right)
+	{
+		return Left.m_Time < Right.m_Time;
+	});
+	m_Meta.m_NotesCount = static_cast<int>(m_vNotes.size());
 
 	json_value_free(pJsonData);
 	return true;
@@ -318,7 +337,7 @@ void CGameControllerMod::UpdateNotes()
 	constexpr int LaneCount = SRhythmFieldConfig::s_LaneCount;
 
 	const int CurrentTick = Server()->Tick();
-	const float ElapsedSec = (CurrentTick - m_RoundStartTick) / float(Server()->TickSpeed());
+	const double ElapsedSec = (CurrentTick - m_RoundStartTick) / static_cast<double>(Server()->TickSpeed());
 	const bool UseTickNotes = m_vNoteTicks.size() == m_vNotes.size();
 	int LeadTicks = 0;
 
@@ -384,10 +403,10 @@ void CGameControllerMod::UpdateNotes()
 		return;
 
 	while(m_NextSpawnNote < (int)m_vNotes.size() &&
-		(UseTickNotes ? CurrentTick >= m_vNoteTicks[m_NextSpawnNote] - LeadTicks : (double)m_vNotes[m_NextSpawnNote].m_Time <= (ElapsedSec + (float)LeadTicks / Server()->TickSpeed())))
+		(UseTickNotes ? CurrentTick >= m_vNoteTicks[m_NextSpawnNote] - LeadTicks : m_vNotes[m_NextSpawnNote].m_Time <= (ElapsedSec + static_cast<double>(LeadTicks) / Server()->TickSpeed())))
 	{
 		const CNote &Note = m_vNotes[m_NextSpawnNote];
-		const int NoteTick = UseTickNotes ? m_vNoteTicks[m_NextSpawnNote] : (m_RoundStartTick + round_to_int(Note.m_Time * Server()->TickSpeed()));
+		const int NoteTick = UseTickNotes ? m_vNoteTicks[m_NextSpawnNote] : NoteTimeToTick(m_RoundStartTick, Note.m_Time, Server()->TickSpeed());
 
 		const int aLaneBits[LaneCount] = {
 			Note.m_StepBits & STEP_BIT_LEFT,
@@ -414,7 +433,7 @@ void CGameControllerMod::UpdateNotes()
 	while(m_CurrentNote < (int)m_vNotes.size())
 	{
 		const CNote &Note = m_vNotes[m_CurrentNote];
-		const int NoteTick = UseTickNotes ? m_vNoteTicks[m_CurrentNote] : (m_RoundStartTick + round_to_int(Note.m_Time * Server()->TickSpeed()));
+		const int NoteTick = UseTickNotes ? m_vNoteTicks[m_CurrentNote] : NoteTimeToTick(m_RoundStartTick, Note.m_Time, Server()->TickSpeed());
 
 		if(CurrentTick < NoteTick - SRhythmFieldConfig::s_BadWindowTicks)
 			break;
@@ -457,7 +476,11 @@ void CGameControllerMod::UpdateNotes()
 						continue;
 
 					const float X = HitPos.x - HalfWidth + SRhythmFieldConfig::s_LaneWidth * (LaneIndex + 0.5f);
-					GameServer()->CreateExplosion(vec2(X, HitPos.y), -1, WEAPON_GRENADE, true, -1);
+					const vec2 EffectPos(X, HitPos.y);
+					CClientMask Mask;
+					Mask.set(i);
+					GameServer()->CreateExplosion(EffectPos, -1, WEAPON_GRENADE, true, -1, Mask);
+					GameServer()->CreateSound(EffectPos, SOUND_PICKUP_HEALTH, Mask);
 					ScoreHit(i, RatingDelta);
 					m_aNoteLaneHitMask[i] |= LaneMask;
 				}

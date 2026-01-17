@@ -38,7 +38,7 @@ class CGameControllerMod : public IGameController
 
 	struct CNote
 	{
-		float m_Time;
+		double m_Time;
 		uint8_t m_StepBits;
 	};
 
