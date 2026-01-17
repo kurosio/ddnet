@@ -496,6 +496,7 @@ void CGameControllerMod::UpdateNotes()
 	constexpr int MaxInputQueueSize = 64;
 
 	const int CurrentTick = Server()->Tick();
+	const int HitWindowTicks = g_Config.m_SvRhythmHitWindowTicks;
 	const int JitterBufferTicks = g_Config.m_SvRhythmJitterBufferTicks;
 	const double ElapsedSec = (CurrentTick - m_RoundStartTick) / static_cast<double>(Server()->TickSpeed());
 	const bool UseTickNotes = m_vNoteTicks.size() == m_vNotes.size();
@@ -507,13 +508,25 @@ void CGameControllerMod::UpdateNotes()
 	auto ScoreHit = [this](int ClientId, int RatingDelta)
 	{
 		if(RatingDelta <= SRhythmFieldConfig::s_PerfectWindowTicks)
+		{
 			m_aScores[ClientId].m_Perfect++;
+			m_aScores[ClientId].m_LastGrade = ERhythmHitGrade::PERFECT;
+		}
 		else if(RatingDelta <= SRhythmFieldConfig::s_GoodWindowTicks)
+		{
 			m_aScores[ClientId].m_Good++;
+			m_aScores[ClientId].m_LastGrade = ERhythmHitGrade::GOOD;
+		}
 		else if(RatingDelta <= SRhythmFieldConfig::s_BadWindowTicks)
+		{
 			m_aScores[ClientId].m_Bad++;
+			m_aScores[ClientId].m_LastGrade = ERhythmHitGrade::BAD;
+		}
 		else
+		{
 			m_aScores[ClientId].m_Miss++;
+			m_aScores[ClientId].m_LastGrade = ERhythmHitGrade::MISS;
+		}
 	};
 	auto LogRhythmInputMetrics = [this, CurrentTick](int ClientId)
 	{
@@ -665,7 +678,7 @@ void CGameControllerMod::UpdateNotes()
 		const CNote &Note = m_vNotes[m_CurrentNote];
 		const int NoteTick = UseTickNotes ? m_vNoteTicks[m_CurrentNote] : NoteTimeToTick(m_RoundStartTick, Note.m_Time, Server()->TickSpeed());
 
-		if(CurrentTick < NoteTick - SRhythmFieldConfig::s_BadWindowTicks)
+		if(CurrentTick < NoteTick - SRhythmFieldConfig::s_BadWindowTicks - HitWindowTicks)
 			break;
 
 		if(Note.m_IsHold)
@@ -674,7 +687,7 @@ void CGameControllerMod::UpdateNotes()
 			continue;
 		}
 
-		const bool WindowExpired = CurrentTick > NoteTick + SRhythmFieldConfig::s_BadWindowTicks;
+		const bool WindowExpired = CurrentTick > NoteTick + SRhythmFieldConfig::s_BadWindowTicks + HitWindowTicks;
 		const int aLaneBits[LaneCount] = {
 			Note.m_StepBits & STEP_BIT_LEFT,
 			Note.m_StepBits & (STEP_BIT_UP | STEP_BIT_DOWN),
@@ -700,12 +713,12 @@ void CGameControllerMod::UpdateNotes()
 				if(m_aNoteLaneHitMask[i] & LaneMask)
 					continue;
 
-				const bool LaneActive = CurrentTick <= m_aLanePressTick[i][LaneIndex];
+				const int PressTick = m_aLanePressTick[i][LaneIndex];
+				const int RawDelta = std::abs(PressTick - NoteTick);
+				const bool LaneActive = RawDelta <= SRhythmFieldConfig::s_BadWindowTicks + HitWindowTicks;
 				if(LaneActive)
 				{
-					const int RatingDelta = std::abs(CurrentTick - NoteTick);
-					if(RatingDelta > SRhythmFieldConfig::s_BadWindowTicks)
-						continue;
+					const int RatingDelta = maximum(0, RawDelta - HitWindowTicks);
 
 					const float X = HitPos.x - HalfWidth + SRhythmFieldConfig::s_LaneWidth * (LaneIndex + 0.5f);
 					const vec2 EffectPos(X, HitPos.y);
@@ -720,6 +733,7 @@ void CGameControllerMod::UpdateNotes()
 				else if(WindowExpired)
 				{
 					m_aScores[i].m_Miss++;
+					m_aScores[i].m_LastGrade = ERhythmHitGrade::MISS;
 					m_aNoteLaneHitMask[i] |= LaneMask;
 				}
 			}

@@ -26,6 +26,15 @@ enum EStepBit : uint8_t
 	STEP_BIT_DOWN = 1 << 3,
 };
 
+enum class ERhythmHitGrade : uint8_t
+{
+	NONE = 0,
+	PERFECT,
+	GOOD,
+	BAD,
+	MISS,
+};
+
 class CGameControllerMod : public IGameController
 {
 	struct CMapMeta
@@ -59,6 +68,7 @@ class CGameControllerMod : public IGameController
 		int m_Good;
 		int m_Bad;
 		int m_Miss;
+		ERhythmHitGrade m_LastGrade;
 	};
 	struct SRhythmInput
 	{
