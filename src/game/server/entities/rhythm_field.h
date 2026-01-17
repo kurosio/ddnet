@@ -12,10 +12,11 @@ class CRhythmArrow;
 struct SRhythmFieldConfig
 {
 	static constexpr int s_LaneCount = 3;
-	static constexpr float s_LaneWidth = 96.0f;
-	static constexpr float s_FieldHeight = 256.0f;
-	static constexpr float s_SpawnOffset = 64.0f;
-	static constexpr float s_FieldOffsetY = 128.0f;
+	static constexpr float s_LaneWidth = 128.0f;
+	static constexpr float s_FieldHeight = 324.0f;
+	static constexpr float s_SpawnOffset = 256.0f;
+	static constexpr float s_FieldViewOffsetX = -256.0f;
+	static constexpr float s_FieldViewOffsetY = -200.0f;
 	static constexpr float s_MissOffset = 64.0f;
 	static constexpr float s_LeadBeats = 2.0f;
 	static constexpr int s_HitWindowTicks = 7;

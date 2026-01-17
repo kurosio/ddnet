@@ -254,7 +254,7 @@ void CGameControllerMod::ChangeState(EStageState State)
 				if(!pPlayer)
 					continue;
 				if(m_FieldAnchorValid)
-					pPlayer->SetFixedView(m_FieldAnchorPos);
+					pPlayer->SetFixedView(m_FieldAnchorPos + vec2(SRhythmFieldConfig::s_FieldViewOffsetX, SRhythmFieldConfig::s_FieldViewOffsetY));
 				else
 					pPlayer->ClearFixedView();
 			}
