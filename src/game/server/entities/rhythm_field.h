@@ -22,7 +22,6 @@ struct SRhythmFieldConfig
 	static constexpr int s_PerfectWindowTicks = 2;
 	static constexpr int s_GoodWindowTicks = 4;
 	static constexpr int s_BadWindowTicks = 6;
-	static constexpr int s_HoldWindowTicks = 12;
 	static constexpr int s_InvalidPressTick = -1000000;
 };
 

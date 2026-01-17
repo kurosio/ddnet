@@ -436,8 +436,10 @@ void CGameControllerMod::UpdateNotes()
 					(LaneIndex == 0 && CurrentInput.m_Direction < 0) ||
 					(LaneIndex == 1 && (CurrentInput.m_Jump & 1)) ||
 					(LaneIndex == 2 && CurrentInput.m_Direction > 0);
-				const int PressDelta = PressTick != SRhythmFieldConfig::s_InvalidPressTick ? std::abs(PressTick - NoteTick) : std::numeric_limits<int>::max();
-				const int HoldDelta = Held ? std::abs(CurrentTick - NoteTick) : std::numeric_limits<int>::max();
+				const bool AfterLine = CurrentTick >= NoteTick;
+				const bool PressAfterLine = PressTick != SRhythmFieldConfig::s_InvalidPressTick && PressTick >= NoteTick;
+				const int PressDelta = PressAfterLine ? (PressTick - NoteTick) : std::numeric_limits<int>::max();
+				const int HoldDelta = (Held && AfterLine) ? (CurrentTick - NoteTick) : std::numeric_limits<int>::max();
 				const int RatingDelta = minimum(PressDelta, HoldDelta);
 				const bool Hit = RatingDelta <= SRhythmFieldConfig::s_BadWindowTicks;
 
