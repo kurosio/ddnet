@@ -10,7 +10,7 @@ class CRhythmField;
 class CRhythmArrow : public CEntity
 {
 public:
-	CRhythmArrow(CGameWorld *pGameWorld, CRhythmField *pField, vec2 Origin, vec2 Direction, float Speed, int HitTick);
+	CRhythmArrow(CGameWorld *pGameWorld, CRhythmField *pField, vec2 Origin, vec2 Direction, float SpeedPerTick, int HitTick, float MissY, float VelScale);
 	~CRhythmArrow() override;
 
 	void Reset() override;
@@ -24,6 +24,7 @@ public:
 	float Phase() const { return m_Phase; }
 	float Speed() const { return m_Speed; }
 	int HitTick() const { return m_HitTick; }
+	float MissY() const { return m_MissY; }
 
 private:
 	CRhythmField *m_pField;
@@ -33,6 +34,8 @@ private:
 	float m_Speed;
 	int m_SpawnTick;
 	int m_HitTick;
+	float m_MissY;
+	float m_VelScale;
 };
 
 #endif

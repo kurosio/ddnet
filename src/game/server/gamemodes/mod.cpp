@@ -1,6 +1,7 @@
 #include "mod.h"
 
 #include <base/math.h>
+#include <cmath>
 #include <base/system.h>
 
 #include <engine/shared/config.h>
@@ -304,7 +305,6 @@ bool CGameControllerMod::IsLobbyMap() const
 
 void CGameControllerMod::UpdateNotes()
 {
-	constexpr float FieldOffsetY = 96.0f;
 	constexpr float FieldHitRadius = 32.0f;
 
 	const int CurrentTick = Server()->Tick();
@@ -327,7 +327,7 @@ void CGameControllerMod::UpdateNotes()
 
 		if(!m_apRhythmFields[i])
 		{
-			vec2 FieldPos = pChar->m_Pos + vec2(0.0f, FieldOffsetY);
+				vec2 FieldPos = pChar->m_Pos + vec2(0.0f, SRhythmFieldConfig::s_FieldOffsetY);
 			m_apRhythmFields[i] = GameServer()->CreateRhythmField(FieldPos, m_Meta.m_Bpm, FieldHitRadius);
 			if(m_apRhythmFields[i])
 				m_apRhythmFields[i]->SetAutoSpawn(false);
@@ -335,9 +335,9 @@ void CGameControllerMod::UpdateNotes()
 
 		if(m_apRhythmFields[i])
 		{
-			m_apRhythmFields[i]->SetHitZone(pChar->m_Pos + vec2(0.0f, FieldOffsetY));
+			m_apRhythmFields[i]->SetHitZone(pChar->m_Pos + vec2(0.0f, SRhythmFieldConfig::s_FieldOffsetY));
 			m_apRhythmFields[i]->SetBpm(m_Meta.m_Bpm);
-			LeadTicks = maximum(LeadTicks, m_apRhythmFields[i]->BeatIntervalTicks() * 2);
+			LeadTicks = maximum(LeadTicks, (int)std::round(m_apRhythmFields[i]->BeatIntervalTicks() * SRhythmFieldConfig::s_LeadBeats));
 		}
 	}
 

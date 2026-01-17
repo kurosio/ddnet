@@ -8,15 +8,17 @@
 
 #include <game/server/gamecontext.h>
 
-CRhythmArrow::CRhythmArrow(CGameWorld *pGameWorld, CRhythmField *pField, vec2 Origin, vec2 Direction, float Speed, int HitTick) :
+CRhythmArrow::CRhythmArrow(CGameWorld *pGameWorld, CRhythmField *pField, vec2 Origin, vec2 Direction, float SpeedPerTick, int HitTick, float MissY, float VelScale) :
 	CEntity(pGameWorld, CGameWorld::ENTTYPE_RHYTHM_ARROW, Origin),
 	m_pField(pField),
 	m_Origin(Origin),
 	m_Direction(Direction),
 	m_Phase(0.0f),
-	m_Speed(Speed),
+	m_Speed(SpeedPerTick),
 	m_SpawnTick(Server()->Tick()),
-	m_HitTick(HitTick)
+	m_HitTick(HitTick),
+	m_MissY(MissY),
+	m_VelScale(VelScale)
 {
 	if(m_pField)
 		m_pField->RegisterArrow(this);
@@ -32,14 +34,13 @@ void CRhythmArrow::Reset()
 void CRhythmArrow::Tick()
 {
 	const int Tick = Server()->Tick();
-	if(Tick >= m_HitTick)
-	{
-		m_MarkedForDestroy = true;
-		return;
-	}
-
 	m_Phase = (Tick - m_SpawnTick) * m_Speed;
 	m_Pos = m_Origin + m_Direction * m_Phase;
+
+	if(m_Pos.y >= m_MissY)
+	{
+		m_MarkedForDestroy = true;
+	}
 }
 
 void CRhythmArrow::TickPaused()
@@ -51,13 +52,16 @@ void CRhythmArrow::Snap(int SnappingClient)
 	if(NetworkClipped(SnappingClient))
 		return;
 
-	const int SnappingClientVersion = GameServer()->GetClientVersion(SnappingClient);
-	const bool Sixup = Server()->IsSixup(SnappingClient);
+	CNetObj_Projectile *pProj = Server()->SnapNewItem<CNetObj_Projectile>(GetId());
+	if(!pProj)
+		return;
 
-	const vec2 From = m_Pos - m_Direction * 12.0f;
-	const vec2 To = m_Pos + m_Direction * 12.0f;
-
-	GameServer()->SnapLaserObject(CSnapContext(SnappingClientVersion, Sixup, SnappingClient), GetId(), To, From, m_SpawnTick, -1, LASERTYPE_FREEZE);
+	pProj->m_X = (int)m_Origin.x;
+	pProj->m_Y = (int)m_Origin.y;
+	pProj->m_VelX = (int)(m_Direction.x * m_VelScale * 100.0f);
+	pProj->m_VelY = (int)(m_Direction.y * m_VelScale * 100.0f);
+	pProj->m_StartTick = m_SpawnTick;
+	pProj->m_Type = WEAPON_GUN;
 }
 
 void CRhythmArrow::DetachField()
