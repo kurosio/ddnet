@@ -439,7 +439,7 @@ void CGameControllerMod::UpdateNotes()
 				const int PressDelta = PressTick != SRhythmFieldConfig::s_InvalidPressTick ? std::abs(PressTick - NoteTick) : std::numeric_limits<int>::max();
 				const int HoldDelta = Held ? std::abs(CurrentTick - NoteTick) : std::numeric_limits<int>::max();
 				const int RatingDelta = minimum(PressDelta, HoldDelta);
-				const bool Hit = RatingDelta <= SRhythmFieldConfig::s_HoldWindowTicks;
+				const bool Hit = RatingDelta <= SRhythmFieldConfig::s_BadWindowTicks;
 
 				if(Hit)
 				{
@@ -455,7 +455,7 @@ void CGameControllerMod::UpdateNotes()
 					else
 						m_aScores[i].m_Miss++;
 				}
-				else if(CurrentTick > NoteTick + SRhythmFieldConfig::s_HoldWindowTicks)
+				else if(CurrentTick > NoteTick + SRhythmFieldConfig::s_BadWindowTicks)
 				{
 					m_aScores[i].m_Miss++;
 				}
