@@ -8,7 +8,7 @@
 
 #include <game/server/gamecontext.h>
 
-CRhythmArrow::CRhythmArrow(CGameWorld *pGameWorld, CRhythmField *pField, vec2 Origin, vec2 Direction, float SpeedPerTick, int HitTick, float MissY, float VelScale) :
+CRhythmArrow::CRhythmArrow(CGameWorld *pGameWorld, CRhythmField *pField, vec2 Origin, vec2 Direction, float SpeedPerTick, int HitTick, int LaneIndex, float MissY, float VelScale) :
 	CEntity(pGameWorld, CGameWorld::ENTTYPE_RHYTHM_ARROW, Origin),
 	m_pField(pField),
 	m_Origin(Origin),
@@ -17,6 +17,7 @@ CRhythmArrow::CRhythmArrow(CGameWorld *pGameWorld, CRhythmField *pField, vec2 Or
 	m_Speed(SpeedPerTick),
 	m_SpawnTick(Server()->Tick()),
 	m_HitTick(HitTick),
+	m_LaneIndex(LaneIndex),
 	m_MissY(MissY),
 	m_VelScale(VelScale)
 {
@@ -51,6 +52,8 @@ void CRhythmArrow::Snap(int SnappingClient)
 {
 	if(NetworkClipped(SnappingClient))
 		return;
+	if(SnappingClient >= 0 && m_HiddenMask.test(SnappingClient))
+		return;
 
 	CNetObj_Projectile *pProj = Server()->SnapNewItem<CNetObj_Projectile>(GetId());
 	if(!pProj)
@@ -67,6 +70,13 @@ void CRhythmArrow::Snap(int SnappingClient)
 void CRhythmArrow::DetachField()
 {
 	m_pField = nullptr;
+}
+
+void CRhythmArrow::HideForClient(int ClientId)
+{
+	if(ClientId < 0 || ClientId >= MAX_CLIENTS)
+		return;
+	m_HiddenMask.set(ClientId);
 }
 
 CRhythmArrow::~CRhythmArrow()

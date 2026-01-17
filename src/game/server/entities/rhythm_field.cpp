@@ -140,10 +140,10 @@ void CRhythmField::SpawnLaneArrow(int LaneIndex, int HitTick)
 	const vec2 Origin(X, m_HitZonePos.y - m_ArrowTravelDistance - SRhythmFieldConfig::s_SpawnOffset);
 	const vec2 Direction(0.0f, 1.0f);
 
-	SpawnArrow(Origin, Direction, HitTick);
+	SpawnArrow(Origin, Direction, HitTick, LaneIndex);
 }
 
-void CRhythmField::SpawnArrow(vec2 Origin, vec2 Direction, int HitTick)
+void CRhythmField::SpawnArrow(vec2 Origin, vec2 Direction, int HitTick, int LaneIndex)
 {
 	const int TravelTicks = std::max(1, HitTick - Server()->Tick());
 	const float Distance = std::max(1.0f, dot(m_HitZonePos - Origin, Direction));
@@ -152,7 +152,7 @@ void CRhythmField::SpawnArrow(vec2 Origin, vec2 Direction, int HitTick)
 	const float VelScale = Distance * Server()->TickSpeed() / (WeaponSpeed * TravelTicks);
 	const float MissY = m_HitZonePos.y + SRhythmFieldConfig::s_MissOffset;
 
-	GameServer()->CreateRhythmArrow(this, Origin, Direction, SpeedPerTick, HitTick, MissY, VelScale);
+	GameServer()->CreateRhythmArrow(this, Origin, Direction, SpeedPerTick, HitTick, LaneIndex, MissY, VelScale);
 }
 
 void CRhythmField::SpawnArrow()
@@ -163,4 +163,16 @@ void CRhythmField::SpawnArrow()
 	const int LaneIndex = m_NextDirectionIndex % SRhythmFieldConfig::s_LaneCount;
 	m_NextDirectionIndex++;
 	SpawnLaneArrow(LaneIndex, HitTick);
+}
+
+void CRhythmField::HideArrowForClient(int LaneIndex, int HitTick, int ClientId)
+{
+	for(CRhythmArrow *pArrow : m_vArrows)
+	{
+		if(!pArrow)
+			continue;
+		if(pArrow->HitTick() != HitTick || pArrow->LaneIndex() != LaneIndex)
+			continue;
+		pArrow->HideForClient(ClientId);
+	}
 }

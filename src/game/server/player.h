@@ -241,6 +241,15 @@ public:
 
 	CSaveTee m_LastTeleTee;
 	std::optional<CSaveTee> m_LastDeath;
+
+	// beat dance
+public:
+	void SetFixedView(vec2 Pos);
+	void ClearFixedView();
+	bool IsViewLocked() const;
+
+private:
+	std::optional<vec2> m_FixedViewPos;
 };
 
 #endif

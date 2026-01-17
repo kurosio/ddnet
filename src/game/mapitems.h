@@ -112,6 +112,7 @@ enum
 
 	// Doors
 	ENTITY_DOOR = 49,
+	ENTITY_RHYTHM_FIELD = 50,
 	// End Of Lower Tiles
 
 	ENTITY_OFFSET = 255 - 16 * 4,

@@ -56,13 +56,15 @@ class CGameControllerMod : public IGameController
 		int m_Miss;
 	};
 
-	CRhythmField *m_apRhythmFields[MAX_CLIENTS];
+	CRhythmField *m_pRhythmField;
 	CNetObj_PlayerInput m_aPrevInputs[MAX_CLIENTS];
-	bool m_aLanePressed[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
 	uint8_t m_aNoteLaneHitMask[MAX_CLIENTS];
 	SRhythmScore m_aScores[MAX_CLIENTS];
+	vec2 m_FieldAnchorPos;
+	bool m_FieldAnchorValid;
 
 	bool LoadDanceMapData(const char *pMapName);
+	bool FindFieldAnchorFromMap(vec2 &OutPos) const;
 
 public:
 	CGameControllerMod(class CGameContext *pGameServer);
@@ -70,6 +72,7 @@ public:
 
 	void Tick() override;
 	void OnPlayerConnect(class CPlayer *pPlayer) override;
+	void Snap(int SnappingClient) override;
 
 	void TickState();
 	void ChangeState(EStageState State);

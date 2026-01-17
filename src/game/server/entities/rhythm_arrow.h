@@ -5,12 +5,14 @@
 
 #include <game/server/entity.h>
 
+#include <engine/shared/protocol.h>
+
 class CRhythmField;
 
 class CRhythmArrow : public CEntity
 {
 public:
-	CRhythmArrow(CGameWorld *pGameWorld, CRhythmField *pField, vec2 Origin, vec2 Direction, float SpeedPerTick, int HitTick, float MissY, float VelScale);
+	CRhythmArrow(CGameWorld *pGameWorld, CRhythmField *pField, vec2 Origin, vec2 Direction, float SpeedPerTick, int HitTick, int LaneIndex, float MissY, float VelScale);
 	~CRhythmArrow() override;
 
 	void Reset() override;
@@ -19,11 +21,13 @@ public:
 	void Snap(int SnappingClient) override;
 
 	void DetachField();
+	void HideForClient(int ClientId);
 
 	vec2 Direction() const { return m_Direction; }
 	float Phase() const { return m_Phase; }
 	float Speed() const { return m_Speed; }
 	int HitTick() const { return m_HitTick; }
+	int LaneIndex() const { return m_LaneIndex; }
 	float MissY() const { return m_MissY; }
 
 private:
@@ -34,8 +38,10 @@ private:
 	float m_Speed;
 	int m_SpawnTick;
 	int m_HitTick;
+	int m_LaneIndex;
 	float m_MissY;
 	float m_VelScale;
+	CClientMask m_HiddenMask;
 };
 
 #endif

@@ -8,11 +8,14 @@
 #include <engine/shared/config.h>
 #include <engine/shared/json.h>
 #include <engine/storage.h>
+#include <engine/shared/protocolglue.h>
 
+#include <game/collision.h>
 #include <game/server/player.h>
 #include <game/server/entities/character.h>
 #include <game/server/entities/rhythm_field.h>
 #include <game/gamecore.h>
+#include <game/mapitems.h>
 
 // Exchange this to a string that identifies your game mode.
 // DM, TDM and CTF are reserved for teeworlds original modes.
@@ -57,9 +60,10 @@ CGameControllerMod::CGameControllerMod(class CGameContext *pGameServer) :
 	mem_zero(&m_Meta, sizeof(m_Meta));
 	m_CurrentNote = 0;
 	m_NextSpawnNote = 0;
-	mem_zero(m_apRhythmFields, sizeof(m_apRhythmFields));
+	m_pRhythmField = nullptr;
+	m_FieldAnchorPos = vec2(0.0f, 0.0f);
+	m_FieldAnchorValid = false;
 	mem_zero(m_aPrevInputs, sizeof(m_aPrevInputs));
-	mem_zero(m_aLanePressed, sizeof(m_aLanePressed));
 	mem_zero(m_aNoteLaneHitMask, sizeof(m_aNoteLaneHitMask));
 	mem_zero(m_aScores, sizeof(m_aScores));
 
@@ -87,6 +91,51 @@ void CGameControllerMod::Tick()
 
 	TickState();
 	IGameController::Tick();
+}
+
+void CGameControllerMod::Snap(int SnappingClient)
+{
+	CNetObj_GameInfo *pGameInfoObj = Server()->SnapNewItem<CNetObj_GameInfo>(0);
+	if(!pGameInfoObj)
+		return;
+
+	pGameInfoObj->m_GameFlags = GameFlags_ClampToSix(m_GameFlags);
+	pGameInfoObj->m_GameStateFlags = 0;
+	if(m_GameOverTick != -1)
+		pGameInfoObj->m_GameStateFlags |= GAMESTATEFLAG_GAMEOVER;
+	if(m_SuddenDeath)
+		pGameInfoObj->m_GameStateFlags |= GAMESTATEFLAG_SUDDENDEATH;
+	if(GameServer()->m_World.m_Paused)
+		pGameInfoObj->m_GameStateFlags |= GAMESTATEFLAG_PAUSED;
+	pGameInfoObj->m_RoundStartTick = m_RoundStartTick;
+	pGameInfoObj->m_WarmupTimer = m_Warmup;
+
+	pGameInfoObj->m_RoundNum = 0;
+	pGameInfoObj->m_RoundCurrent = m_RoundCount + 1;
+
+	CNetObj_GameInfoEx *pGameInfoEx = Server()->SnapNewItem<CNetObj_GameInfoEx>(0);
+	if(!pGameInfoEx)
+		return;
+
+	pGameInfoEx->m_Flags =
+		GAMEINFOFLAG_GAMETYPE_RACE |
+		GAMEINFOFLAG_GAMETYPE_DDRACE |
+		GAMEINFOFLAG_GAMETYPE_DDNET |
+		GAMEINFOFLAG_UNLIMITED_AMMO |
+		GAMEINFOFLAG_ALLOW_EYE_WHEEL |
+		GAMEINFOFLAG_ALLOW_HOOK_COLL |
+		GAMEINFOFLAG_ALLOW_ZOOM |
+		GAMEINFOFLAG_BUG_DDRACE_GHOST |
+		GAMEINFOFLAG_PREDICT_DDRACE |
+		GAMEINFOFLAG_PREDICT_DDRACE_TILES |
+		GAMEINFOFLAG_ENTITIES_DDNET |
+		GAMEINFOFLAG_ENTITIES_DDRACE |
+		GAMEINFOFLAG_ENTITIES_RACE |
+		GAMEINFOFLAG_RACE;
+	pGameInfoEx->m_Flags2 = GAMEINFOFLAG2_HUD_DDRACE | GAMEINFOFLAG2_DDRACE_TEAM;
+	if(g_Config.m_SvNoWeakHook)
+		pGameInfoEx->m_Flags2 |= GAMEINFOFLAG2_NO_WEAK_HOOK;
+	pGameInfoEx->m_Version = GAMEINFO_CURVERSION;
 }
 
 void CGameControllerMod::OnPlayerConnect(CPlayer *pPlayer)
@@ -153,6 +202,11 @@ void CGameControllerMod::ChangeState(EStageState State)
 		case EStageState::STATE_LOBBY:
 			DoWarmup(-1);
 			ChangeMap("lobby");
+			for(auto *pPlayer : GameServer()->m_apPlayers)
+			{
+				if(pPlayer)
+					pPlayer->ClearFixedView();
+			}
 			break;
 
 		case EStageState::STATE_ENTER:
@@ -177,29 +231,43 @@ void CGameControllerMod::ChangeState(EStageState State)
 			m_CurrentNote = 0;
 			m_NextSpawnNote = 0;
 			m_GameOverTick = -1;
+			m_FieldAnchorValid = FindFieldAnchorFromMap(m_FieldAnchorPos);
 			m_vNoteTicks.clear();
 			m_vNoteTicks.reserve(m_vNotes.size());
 			for(const auto &Note : m_vNotes)
 			{
 				m_vNoteTicks.push_back(NoteTimeToTick(m_RoundStartTick, Note.m_Time, Server()->TickSpeed()));
 			}
+			if(m_pRhythmField)
+			{
+				m_pRhythmField->Reset();
+				m_pRhythmField = nullptr;
+			}
 			for(int i = 0; i < MAX_CLIENTS; ++i)
 			{
-				if(m_apRhythmFields[i])
-				{
-					m_apRhythmFields[i]->Reset();
-					m_apRhythmFields[i] = nullptr;
-				}
 				m_aPrevInputs[i] = CNetObj_PlayerInput{};
-				mem_zero(m_aLanePressed[i], sizeof(m_aLanePressed[i]));
 				m_aNoteLaneHitMask[i] = 0;
 				m_aScores[i] = {};
+			}
+			for(auto *pPlayer : GameServer()->m_apPlayers)
+			{
+				if(!pPlayer)
+					continue;
+				if(m_FieldAnchorValid)
+					pPlayer->SetFixedView(m_FieldAnchorPos);
+				else
+					pPlayer->ClearFixedView();
 			}
 			break;
 
 		case EStageState::STATE_FINISHED:
 			DoWarmup(-1);
 			ChangeMap("lobby");
+			for(auto *pPlayer : GameServer()->m_apPlayers)
+			{
+				if(pPlayer)
+					pPlayer->ClearFixedView();
+			}
 			break;
 	}
 }
@@ -331,6 +399,26 @@ bool CGameControllerMod::IsLobbyMap() const
 	return str_comp("lobby", Server()->GetMapName()) == 0;
 }
 
+bool CGameControllerMod::FindFieldAnchorFromMap(vec2 &OutPos) const
+{
+	CCollision *pCollision = GameServer()->Collision();
+	const int Width = pCollision->GetWidth();
+	const int Height = pCollision->GetHeight();
+	const int TargetIndex = ENTITY_OFFSET + ENTITY_RHYTHM_FIELD;
+	for(int y = 0; y < Height; ++y)
+	{
+		for(int x = 0; x < Width; ++x)
+		{
+			const int Index = y * Width + x;
+			if(pCollision->GetTileIndex(Index) != TargetIndex)
+				continue;
+			OutPos = pCollision->GetPos(Index);
+			return true;
+		}
+	}
+	return false;
+}
+
 void CGameControllerMod::UpdateNotes()
 {
 	constexpr float FieldHitRadius = 32.0f;
@@ -340,6 +428,8 @@ void CGameControllerMod::UpdateNotes()
 	const double ElapsedSec = (CurrentTick - m_RoundStartTick) / static_cast<double>(Server()->TickSpeed());
 	const bool UseTickNotes = m_vNoteTicks.size() == m_vNotes.size();
 	int LeadTicks = 0;
+	bool aLanePressed[MAX_CLIENTS][LaneCount];
+	mem_zero(aLanePressed, sizeof(aLanePressed));
 
 	auto ScoreHit = [this](int ClientId, int RatingDelta)
 	{
@@ -358,31 +448,10 @@ void CGameControllerMod::UpdateNotes()
 		CCharacter *pChar = GameServer()->GetPlayerChar(i);
 		if(!pChar)
 		{
-			if(m_apRhythmFields[i])
-			{
-				m_apRhythmFields[i]->Reset();
-				m_apRhythmFields[i] = nullptr;
-			}
 			m_aPrevInputs[i] = CNetObj_PlayerInput{};
-			mem_zero(m_aLanePressed[i], sizeof(m_aLanePressed[i]));
 			m_aNoteLaneHitMask[i] = 0;
 			m_aScores[i] = {};
 			continue;
-		}
-
-		if(!m_apRhythmFields[i])
-		{
-			vec2 FieldPos = pChar->m_Pos + vec2(0.0f, SRhythmFieldConfig::s_FieldOffsetY);
-			m_apRhythmFields[i] = GameServer()->CreateRhythmField(FieldPos, m_Meta.m_Bpm, FieldHitRadius);
-			if(m_apRhythmFields[i])
-				m_apRhythmFields[i]->SetAutoSpawn(false);
-		}
-
-		if(m_apRhythmFields[i])
-		{
-			m_apRhythmFields[i]->SetHitZone(pChar->m_Pos + vec2(0.0f, SRhythmFieldConfig::s_FieldOffsetY));
-			m_apRhythmFields[i]->SetBpm(m_Meta.m_Bpm);
-			LeadTicks = maximum(LeadTicks, (int)std::round(m_apRhythmFields[i]->BeatIntervalTicks() * SRhythmFieldConfig::s_LeadBeats));
 		}
 
 		const CNetObj_PlayerInput CurrentInput = GameServer()->GetLastPlayerInput(i);
@@ -392,11 +461,28 @@ void CGameControllerMod::UpdateNotes()
 		const bool RightPressed = CurrentInput.m_Direction > 0 && PrevInput.m_Direction <= 0;
 		const bool JumpPressed = CountInput(PrevInput.m_Jump, CurrentInput.m_Jump).m_Presses > 0;
 
-		m_aLanePressed[i][0] = LeftPressed;
-		m_aLanePressed[i][1] = JumpPressed;
-		m_aLanePressed[i][2] = RightPressed;
+		aLanePressed[i][0] = LeftPressed;
+		aLanePressed[i][1] = JumpPressed;
+		aLanePressed[i][2] = RightPressed;
 
 		PrevInput = CurrentInput;
+	}
+
+	if(m_FieldAnchorValid && !m_pRhythmField)
+	{
+		const vec2 FieldPos = m_FieldAnchorPos;
+		m_pRhythmField = GameServer()->CreateRhythmField(FieldPos, m_Meta.m_Bpm, FieldHitRadius);
+		if(m_pRhythmField)
+		{
+			m_pRhythmField->SetAutoSpawn(false);
+			m_pRhythmField->SetHitZone(FieldPos);
+		}
+	}
+
+	if(m_pRhythmField)
+	{
+		m_pRhythmField->SetBpm(m_Meta.m_Bpm);
+		LeadTicks = maximum(LeadTicks, (int)std::round(m_pRhythmField->BeatIntervalTicks() * SRhythmFieldConfig::s_LeadBeats));
 	}
 
 	if(LeadTicks <= 0)
@@ -414,16 +500,12 @@ void CGameControllerMod::UpdateNotes()
 			Note.m_StepBits & STEP_BIT_RIGHT,
 		};
 
-		for(int i = 0; i < MAX_CLIENTS; ++i)
+		if(m_pRhythmField)
 		{
-			CRhythmField *pField = m_apRhythmFields[i];
-			if(!pField)
-				continue;
-
 			for(int LaneIndex = 0; LaneIndex < LaneCount; ++LaneIndex)
 			{
 				if(aLaneBits[LaneIndex])
-					pField->SpawnLaneArrow(LaneIndex, NoteTick);
+					m_pRhythmField->SpawnLaneArrow(LaneIndex, NoteTick);
 			}
 		}
 
@@ -447,12 +529,11 @@ void CGameControllerMod::UpdateNotes()
 
 		for(int i = 0; i < MAX_CLIENTS; ++i)
 		{
-			CRhythmField *pField = m_apRhythmFields[i];
-			if(!pField)
+			if(!m_pRhythmField)
 				continue;
 
 			const CNetObj_PlayerInput CurrentInput = GameServer()->GetLastPlayerInput(i);
-			const vec2 HitPos = pField->HitZonePos();
+			const vec2 HitPos = m_pRhythmField->HitZonePos();
 			const float HalfWidth = SRhythmFieldConfig::s_LaneWidth * 1.5f;
 			const bool aHeld[LaneCount] = {
 				CurrentInput.m_Direction < 0,
@@ -469,7 +550,7 @@ void CGameControllerMod::UpdateNotes()
 				if(m_aNoteLaneHitMask[i] & LaneMask)
 					continue;
 
-				if(m_aLanePressed[i][LaneIndex] || aHeld[LaneIndex])
+				if(aLanePressed[i][LaneIndex] || aHeld[LaneIndex])
 				{
 					const int RatingDelta = std::abs(CurrentTick - NoteTick);
 					if(RatingDelta > SRhythmFieldConfig::s_BadWindowTicks)
@@ -482,6 +563,7 @@ void CGameControllerMod::UpdateNotes()
 					GameServer()->CreateExplosion(EffectPos, -1, WEAPON_GRENADE, true, -1, Mask);
 					GameServer()->CreateSound(EffectPos, SOUND_PICKUP_HEALTH, Mask);
 					ScoreHit(i, RatingDelta);
+					m_pRhythmField->HideArrowForClient(LaneIndex, NoteTick, i);
 					m_aNoteLaneHitMask[i] |= LaneMask;
 				}
 				else if(WindowExpired)
