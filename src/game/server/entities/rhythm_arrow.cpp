@@ -4,6 +4,8 @@
 
 #include "rhythm_field.h"
 
+#include <base/math.h>
+
 #include <generated/protocol.h>
 
 #include <game/server/gamecontext.h>
@@ -60,10 +62,43 @@ void CRhythmArrow::Snap(int SnappingClient)
 		return;
 
 	const int SnappingClientVersion = GameServer()->GetClientVersion(SnappingClient);
-	const bool Sixup = Server()->IsSixup(SnappingClient);
-	GameServer()->SnapPickup(CSnapContext(SnappingClientVersion, Sixup, SnappingClient), GetId(), m_Pos, POWERUP_HEALTH, -1, -1, 0);
+	const float Speed = GameServer()->GlobalTuning()->m_GunSpeed;
+	const float StartVelScale = Speed > 0.0f ? (m_Speed * Server()->TickSpeed()) / Speed : 0.0f;
+	const vec2 StartVel = m_Direction * StartVelScale;
+
+	if(SnappingClientVersion >= VERSION_DDNET_ENTITY_NETOBJS)
+	{
+		CNetObj_DDNetProjectile *pProj = static_cast<CNetObj_DDNetProjectile *>(Server()->SnapNewItem(NETOBJTYPE_DDNETPROJECTILE, GetId(), sizeof(CNetObj_DDNetProjectile)));
+		if(!pProj)
+			return;
+
+		pProj->m_X = round_to_int(m_Origin.x * 100.0f);
+		pProj->m_Y = round_to_int(m_Origin.y * 100.0f);
+		pProj->m_VelX = round_to_int(StartVel.x * 1e6f);
+		pProj->m_VelY = round_to_int(StartVel.y * 1e6f);
+		pProj->m_Type = WEAPON_GUN;
+		pProj->m_StartTick = m_SpawnTick;
+		pProj->m_Owner = -1;
+		pProj->m_Flags = 0;
+		pProj->m_SwitchNumber = 0;
+		pProj->m_TuneZone = 0;
+	}
+	else
+	{
+		CNetObj_Projectile *pProj = Server()->SnapNewItem<CNetObj_Projectile>(GetId());
+		if(!pProj)
+			return;
+
+		pProj->m_X = (int)m_Origin.x;
+		pProj->m_Y = (int)m_Origin.y;
+		pProj->m_VelX = (int)(StartVel.x * 100.0f);
+		pProj->m_VelY = (int)(StartVel.y * 100.0f);
+		pProj->m_Type = WEAPON_GUN;
+		pProj->m_StartTick = m_SpawnTick;
+	}
 	if(m_TailLaserId >= 0 && m_TailLength > 0.0f)
 	{
+		const bool Sixup = Server()->IsSixup(SnappingClient);
 		const CSnapContext Context(SnappingClientVersion, Sixup, SnappingClient);
 		const vec2 TailPos = m_Pos - m_Direction * m_TailLength;
 		GameServer()->SnapLaserObject(Context, m_TailLaserId, m_Pos, TailPos, Server()->Tick(), -1, LASERTYPE_SHOTGUN);
