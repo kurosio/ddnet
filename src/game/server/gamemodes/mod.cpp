@@ -25,6 +25,10 @@
 namespace
 {
 	constexpr int LaneCount = SRhythmFieldConfig::s_LaneCount;
+	bool IsValidClientId(int ClientId)
+	{
+		return ClientId >= 0 && ClientId < MAX_CLIENTS;
+	}
 
 	bool ParseStepBits(const json_value &Value, uint8_t *pOut)
 	{
@@ -560,6 +564,9 @@ bool CGameControllerMod::IsLobbyMap() const
 
 void CGameControllerMod::ResetClientState(int ClientId)
 {
+	if(!IsValidClientId(ClientId))
+		return;
+
 	m_aPrevInputs[ClientId] = CNetObj_PlayerInput{};
 	mem_zero(m_aLanePressTick[ClientId], sizeof(m_aLanePressTick[ClientId]));
 	mem_zero(m_aLaneLastHitTick[ClientId], sizeof(m_aLaneLastHitTick[ClientId]));
@@ -580,6 +587,9 @@ void CGameControllerMod::ResetClientState(int ClientId)
 
 void CGameControllerMod::TryStartHold(int ClientId, int LaneIndex, int PressTick, int HitWindowTicks, bool UseTickNotes)
 {
+	if(!IsValidClientId(ClientId))
+		return;
+
 	if(m_aLaneHoldActive[ClientId][LaneIndex] && PressTick <= m_aLaneHoldEndTick[ClientId][LaneIndex])
 		return;
 
@@ -647,6 +657,9 @@ void CGameControllerMod::TryStartHold(int ClientId, int LaneIndex, int PressTick
 
 void CGameControllerMod::ScoreHit(int ClientId, int RatingDelta)
 {
+	if(!IsValidClientId(ClientId))
+		return;
+
 	if(RatingDelta <= SRhythmFieldConfig::s_PerfectWindowTicks)
 	{
 		m_aScores[ClientId].m_Perfect++;
@@ -691,6 +704,9 @@ bool CGameControllerMod::FindFieldAnchorFromMap(vec2 &OutPos) const
 
 void CGameControllerMod::OnDirectInput(int ClientId, const CNetObj_PlayerInput *pNewInput)
 {
+	if(!IsValidClientId(ClientId))
+		return;
+
 	if(m_State != EStageState::STATE_ACTIVE || !pNewInput)
 		return;
 
