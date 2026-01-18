@@ -16,6 +16,9 @@ struct SRhythmFieldConfig
 	static constexpr float s_FieldHeight = 324.0f;
 	static constexpr float s_SpawnOffset = 256.0f;
 	static constexpr float s_ArrowTravelDistance = s_FieldHeight + s_SpawnOffset;
+	static constexpr float s_ReferenceBpm = 120.0f;
+	static constexpr float s_MinFieldScale = 0.6f;
+	static constexpr float s_MaxFieldScale = 1.4f;
 	static constexpr float s_FieldViewOffsetX = -256.0f;
 	static constexpr float s_FieldViewOffsetY = -200.0f;
 	static constexpr float s_MissOffset = 64.0f;
@@ -56,7 +59,7 @@ public:
 	float BeatPeriod() const { return m_BeatPeriod; }
 	vec2 HitZonePos() const { return m_HitZonePos; }
 	float HitZoneRadius() const { return m_HitZoneRadius; }
-	float ArrowTravelDistance() const { return m_ArrowTravelDistance + SRhythmFieldConfig::s_SpawnOffset; }
+	float ArrowTravelDistance() const { return m_ArrowTravelDistance + m_SpawnOffset; }
 
 private:
 	void EnsureSnapIds();
@@ -69,6 +72,8 @@ private:
 	int m_BeatIntervalTicks;
 	int m_SpawnIntervalTicks;
 	int m_NextSpawnTick;
+	float m_FieldScale;
+	float m_SpawnOffset;
 	float m_ArrowTravelDistance;
 	bool m_AutoSpawn;
 
