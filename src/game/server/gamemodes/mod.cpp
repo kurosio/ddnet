@@ -465,7 +465,7 @@ bool CGameControllerMod::LoadDanceMapData(const char *pMapName)
 			json_value_free(pJsonData);
 			return false;
 		}
-		if(ParsedHold.m_StepBits == STEP_BIT_UP || ParsedHold.m_StepBits == STEP_BIT_DOWN)
+		if(ParsedHold.m_StepBits == STEP_BIT_UP || ParsedHold.m_StepBits == STEP_BIT_DOWN || ParsedHold.m_StepBits == STEP_BIT_RIGHT)
 			ParsedHold.m_StepBits = STEP_BIT_UP | STEP_BIT_DOWN;
 
 		m_vNotes.push_back(ParsedHold);

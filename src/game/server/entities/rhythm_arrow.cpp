@@ -66,7 +66,7 @@ void CRhythmArrow::Snap(int SnappingClient)
 	{
 		const CSnapContext Context(SnappingClientVersion, Sixup, SnappingClient);
 		const vec2 TailPos = m_Pos - m_Direction * m_TailLength;
-		GameServer()->SnapLaserObject(Context, m_TailLaserId, m_Pos, TailPos, Server()->Tick(), -1, LASERTYPE_DOOR);
+		GameServer()->SnapLaserObject(Context, m_TailLaserId, m_Pos, TailPos, Server()->Tick(), -1, LASERTYPE_SHOTGUN);
 	}
 }
 
