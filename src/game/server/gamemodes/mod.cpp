@@ -568,13 +568,13 @@ void CGameControllerMod::ResetClientState(int ClientId)
 		return;
 
 	m_aPrevInputs[ClientId] = CNetObj_PlayerInput{};
-	mem_zero(m_aLanePressTick[ClientId], sizeof(m_aLanePressTick[ClientId]));
-	mem_zero(m_aLaneLastHitTick[ClientId], sizeof(m_aLaneLastHitTick[ClientId]));
-	mem_zero(m_aLaneHoldTick[ClientId], sizeof(m_aLaneHoldTick[ClientId]));
-	mem_zero(m_aLaneHoldStartTick[ClientId], sizeof(m_aLaneHoldStartTick[ClientId]));
-	mem_zero(m_aLaneHoldEndTick[ClientId], sizeof(m_aLaneHoldEndTick[ClientId]));
 	for(int LaneIndex = 0; LaneIndex < LaneCount; ++LaneIndex)
 	{
+		m_aLanePressTick[ClientId][LaneIndex] = SRhythmFieldConfig::s_InvalidPressTick;
+		m_aLaneLastHitTick[ClientId][LaneIndex] = SRhythmFieldConfig::s_InvalidPressTick;
+		m_aLaneHoldTick[ClientId][LaneIndex] = SRhythmFieldConfig::s_InvalidPressTick;
+		m_aLaneHoldStartTick[ClientId][LaneIndex] = SRhythmFieldConfig::s_InvalidPressTick;
+		m_aLaneHoldEndTick[ClientId][LaneIndex] = SRhythmFieldConfig::s_InvalidPressTick;
 		m_aLaneHoldActive[ClientId][LaneIndex] = false;
 		m_aLaneHoldEndEffectPlayed[ClientId][LaneIndex] = false;
 	}
@@ -588,6 +588,9 @@ void CGameControllerMod::ResetClientState(int ClientId)
 void CGameControllerMod::TryStartHold(int ClientId, int LaneIndex, int PressTick, int HitWindowTicks, bool UseTickNotes)
 {
 	if(!IsValidClientId(ClientId))
+		return;
+
+	if(PressTick == SRhythmFieldConfig::s_InvalidPressTick)
 		return;
 
 	if(m_aLaneHoldActive[ClientId][LaneIndex] && PressTick <= m_aLaneHoldEndTick[ClientId][LaneIndex])
@@ -641,6 +644,9 @@ void CGameControllerMod::TryStartHold(int ClientId, int LaneIndex, int PressTick
 	m_aLaneHoldTick[ClientId][LaneIndex] = PressTick;
 	m_aLaneHoldEndEffectPlayed[ClientId][LaneIndex] = false;
 	m_aLanePressUsedId[ClientId][LaneIndex] = m_aLanePressId[ClientId][LaneIndex];
+
+	const int RatingDelta = maximum(0, BestDelta - HitWindowTicks);
+	ScoreHit(ClientId, RatingDelta);
 
 	if(m_pRhythmField)
 	{
@@ -748,8 +754,6 @@ void CGameControllerMod::OnDirectInput(int ClientId, const CNetObj_PlayerInput *
 			m_aLanePressTick[ClientId][LaneIndex] = CurrentTick;
 		}
 		if(aLaneHeld[LaneIndex])
-			m_aLanePressTick[ClientId][LaneIndex] = CurrentTick;
-		if(aLaneHeld[LaneIndex])
 			m_aLaneHoldTick[ClientId][LaneIndex] = CurrentTick;
 	}
 
@@ -760,6 +764,8 @@ void CGameControllerMod::OnDirectInput(int ClientId, const CNetObj_PlayerInput *
 	{
 		if(aLanePressed[LaneIndex])
 			TryStartHold(ClientId, LaneIndex, m_aLanePressTick[ClientId][LaneIndex], HitWindowTicks, UseTickNotes);
+		else if(aLaneHeld[LaneIndex] && !m_aLaneHoldActive[ClientId][LaneIndex])
+			TryStartHold(ClientId, LaneIndex, m_aLaneHoldTick[ClientId][LaneIndex], HitWindowTicks, UseTickNotes);
 	}
 
 	for(int NoteIndex = m_CurrentNote; NoteIndex < (int)m_vNotes.size(); ++NoteIndex)
@@ -792,11 +798,22 @@ void CGameControllerMod::OnDirectInput(int ClientId, const CNetObj_PlayerInput *
 				continue;
 			if(m_aLanePressId[ClientId][LaneIndex] == m_aLanePressUsedId[ClientId][LaneIndex])
 				continue;
-			const int PressTick = m_aLanePressTick[ClientId][LaneIndex];
+			int PressTick = m_aLanePressTick[ClientId][LaneIndex];
 			if(NoteTick <= m_aLaneLastHitTick[ClientId][LaneIndex])
 				continue;
-			const int RawDelta = std::abs(PressTick - NoteTick);
-			if(RawDelta > SRhythmFieldConfig::s_BadWindowTicks + HitWindowTicks)
+			int RawDelta = std::abs(PressTick - NoteTick);
+			const int WindowTicks = SRhythmFieldConfig::s_BadWindowTicks + HitWindowTicks;
+			if(RawDelta > WindowTicks && aLaneHeld[LaneIndex])
+			{
+				const int HeldTick = m_aLaneHoldTick[ClientId][LaneIndex];
+				const int HeldDelta = std::abs(HeldTick - NoteTick);
+				if(HeldDelta <= WindowTicks)
+				{
+					PressTick = HeldTick;
+					RawDelta = HeldDelta;
+				}
+			}
+			if(RawDelta > WindowTicks)
 				continue;
 
 			const int RatingDelta = maximum(0, RawDelta - HitWindowTicks);
