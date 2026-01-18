@@ -265,7 +265,7 @@ public:
 	void CreateAllEntities(bool Initial);
 	CPlayer *CreatePlayer(int ClientId, int StartTeam, bool Afk, int LastWhisperTo);
 	CRhythmField *CreateRhythmField(vec2 Pos, float Bpm, float HitRadius);
-	CRhythmArrow *CreateRhythmArrow(CRhythmField *pField, vec2 Origin, vec2 Direction, float SpeedPerTick, int HitTick, int LaneIndex, float MissY, float VelScale);
+	CRhythmArrow *CreateRhythmArrow(CRhythmField *pField, vec2 Origin, vec2 Direction, float SpeedPerTick, int HitTick, int LaneIndex, float MissY, float VelScale, float TailLength = 0.0f);
 
 	char m_aDeleteTempfile[128];
 	void DeleteTempfile();

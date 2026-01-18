@@ -4409,9 +4409,9 @@ CRhythmField *CGameContext::CreateRhythmField(vec2 Pos, float Bpm, float HitRadi
 	return new CRhythmField(&m_World, Pos, Bpm, HitRadius);
 }
 
-CRhythmArrow *CGameContext::CreateRhythmArrow(CRhythmField *pField, vec2 Origin, vec2 Direction, float SpeedPerTick, int HitTick, int LaneIndex, float MissY, float VelScale)
+CRhythmArrow *CGameContext::CreateRhythmArrow(CRhythmField *pField, vec2 Origin, vec2 Direction, float SpeedPerTick, int HitTick, int LaneIndex, float MissY, float VelScale, float TailLength)
 {
-	return new CRhythmArrow(&m_World, pField, Origin, Direction, SpeedPerTick, HitTick, LaneIndex, MissY, VelScale);
+	return new CRhythmArrow(&m_World, pField, Origin, Direction, SpeedPerTick, HitTick, LaneIndex, MissY, VelScale, TailLength);
 }
 
 void CGameContext::DeleteTempfile()

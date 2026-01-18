@@ -54,13 +54,22 @@ class CGameControllerMod : public IGameController
 		uint8_t m_StepBits;
 		bool m_IsHold;
 	};
+	struct CHoldSegment
+	{
+		double m_Time;
+		uint8_t m_StepBits;
+	};
 
 	EStageState m_State;
 	CMapMeta m_Meta;
 	std::vector<CNote> m_vNotes;
 	std::vector<int> m_vNoteTicks;
+	std::vector<CHoldSegment> m_vHoldSegments;
+	std::vector<int> m_vHoldSegmentTicks;
 	int m_CurrentNote;
 	int m_NextSpawnNote;
+	int m_CurrentHoldSegment;
+	int m_CurrentHoldEffect;
 	struct SRhythmScore
 	{
 		int m_Perfect;
@@ -76,6 +85,7 @@ class CGameControllerMod : public IGameController
 	int m_aLanePressId[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
 	int m_aLanePressUsedId[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
 	uint8_t m_aNoteLaneHitMask[MAX_CLIENTS];
+	uint8_t m_aHoldSegmentLaneHitMask[MAX_CLIENTS];
 	SRhythmScore m_aScores[MAX_CLIENTS];
 	vec2 m_FieldAnchorPos;
 	bool m_FieldAnchorValid;

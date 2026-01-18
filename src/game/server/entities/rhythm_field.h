@@ -42,7 +42,7 @@ public:
 	void SetAutoSpawn(bool Auto);
 	void SetHitZone(vec2 Pos);
 	int BeatIntervalTicks() const { return m_BeatIntervalTicks; }
-	void SpawnLaneArrow(int LaneIndex, int HitTick);
+	void SpawnLaneArrow(int LaneIndex, int HitTick, int HoldDurationTicks = 0);
 	void HideArrowForClient(int LaneIndex, int HitTick, int ClientId);
 	bool IsHiddenArrowForClient(int LaneIndex, int HitTick, int ClientId) const;
 
@@ -58,7 +58,7 @@ public:
 private:
 	void EnsureSnapIds();
 	void UpdateBeatTiming();
-	void SpawnArrow(vec2 Origin, vec2 Direction, int HitTick, int LaneIndex);
+	void SpawnArrow(vec2 Origin, vec2 Direction, int HitTick, int LaneIndex, int HoldDurationTicks);
 	void SpawnArrow();
 
 	float m_Bpm;
