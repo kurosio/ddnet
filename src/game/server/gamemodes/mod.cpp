@@ -401,6 +401,8 @@ bool CGameControllerMod::LoadDanceMapData(const char *pMapName)
 	m_Meta.m_TapCount = json_int_get(&TapCount);
 	m_Meta.m_HoldsCount = json_int_get(&HoldsCount);
 
+	UpdateRhythmProjectileTuning();
+
 	for(unsigned i = 0; i < Notes.u.array.length; ++i)
 	{
 		const json_value &Note = Notes[i];
@@ -555,6 +557,23 @@ bool CGameControllerMod::LoadDanceMapData(const char *pMapName)
 
 	json_value_free(pJsonData);
 	return true;
+}
+
+void CGameControllerMod::UpdateRhythmProjectileTuning()
+{
+	if(m_Meta.m_Bpm <= 0.0f)
+		return;
+
+	const float BeatPeriod = 60.0f / m_Meta.m_Bpm;
+	const float Speed = SRhythmFieldConfig::s_FieldHeight / BeatPeriod;
+	const float Curvature = 0.0f;
+
+	if(GlobalTuning()->m_GunSpeed == Speed && GlobalTuning()->m_GunCurvature == Curvature)
+		return;
+
+	GlobalTuning()->m_GunSpeed = Speed;
+	GlobalTuning()->m_GunCurvature = Curvature;
+	SendTuningParams(-1);
 }
 
 bool CGameControllerMod::IsLobbyMap() const

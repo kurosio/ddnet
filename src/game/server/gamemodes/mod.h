@@ -96,6 +96,7 @@ class CGameControllerMod : public IGameController
 
 	bool LoadDanceMapData(const char *pMapName);
 	bool FindFieldAnchorFromMap(vec2 &OutPos) const;
+	void UpdateRhythmProjectileTuning();
 	void ScoreHit(int ClientId, int RatingDelta);
 	void ResetClientState(int ClientId);
 	void TryStartHold(int ClientId, int LaneIndex, int PressTick, int HitWindowTicks, bool UseTickNotes);
