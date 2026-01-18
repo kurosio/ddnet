@@ -19,6 +19,7 @@ struct SRhythmFieldConfig
 	static constexpr float s_FieldViewOffsetY = -200.0f;
 	static constexpr float s_MissOffset = 64.0f;
 	static constexpr float s_LeadBeats = 2.0f;
+	static constexpr int s_AutoSpawnLaneIndex = 1;
 	static constexpr int s_HitWindowTicks = 7;
 	static constexpr int s_PerfectWindowTicks = 2;
 	static constexpr int s_GoodWindowTicks = 4;
@@ -63,8 +64,8 @@ private:
 	float m_Bpm;
 	float m_BeatPeriod;
 	int m_BeatIntervalTicks;
-	int m_NextBeatTick;
-	int m_NextDirectionIndex;
+	int m_SpawnIntervalTicks;
+	int m_NextSpawnTick;
 	float m_ArrowTravelDistance;
 	bool m_AutoSpawn;
 

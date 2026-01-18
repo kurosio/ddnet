@@ -16,8 +16,8 @@ CRhythmField::CRhythmField(CGameWorld *pGameWorld, vec2 Pos, float Bpm, float Hi
 	m_Bpm(Bpm),
 	m_BeatPeriod(0.0f),
 	m_BeatIntervalTicks(0),
-	m_NextBeatTick(0),
-	m_NextDirectionIndex(0),
+	m_SpawnIntervalTicks(0),
+	m_NextSpawnTick(0),
 	m_ArrowTravelDistance(SRhythmFieldConfig::s_FieldHeight),
 	m_AutoSpawn(true),
 	m_HitZonePos(Pos),
@@ -26,7 +26,7 @@ CRhythmField::CRhythmField(CGameWorld *pGameWorld, vec2 Pos, float Bpm, float Hi
 	m_HitLineLaserId = -1;
 	EnsureSnapIds();
 	UpdateBeatTiming();
-	m_NextBeatTick = Server()->Tick() + m_BeatIntervalTicks;
+	m_NextSpawnTick = Server()->Tick() + m_SpawnIntervalTicks;
 
 	GameWorld()->InsertEntity(this);
 }
@@ -63,13 +63,13 @@ void CRhythmField::Tick()
 	if(!m_AutoSpawn)
 		return;
 
-	if(Server()->Tick() < m_NextBeatTick)
+	if(Server()->Tick() < m_NextSpawnTick)
 		return;
 
-	while(Server()->Tick() >= m_NextBeatTick)
+	while(Server()->Tick() >= m_NextSpawnTick)
 	{
 		SpawnArrow();
-		m_NextBeatTick += m_BeatIntervalTicks;
+		m_NextSpawnTick += m_SpawnIntervalTicks;
 	}
 }
 
@@ -138,6 +138,7 @@ void CRhythmField::UpdateBeatTiming()
 
 	m_BeatPeriod = 60.0f / m_Bpm;
 	m_BeatIntervalTicks = std::max(1, (int)std::round(m_BeatPeriod * Server()->TickSpeed()));
+	m_SpawnIntervalTicks = std::max(1, (int)std::round((m_Bpm / 60.0f) * Server()->TickSpeed()));
 }
 
 void CRhythmField::SpawnLaneArrow(int LaneIndex, int HitTick)
@@ -167,9 +168,7 @@ void CRhythmField::SpawnArrow()
 	const int SpawnTick = Server()->Tick();
 	const int HitTick = SpawnTick + m_BeatIntervalTicks;
 
-	const int LaneIndex = m_NextDirectionIndex % SRhythmFieldConfig::s_LaneCount;
-	m_NextDirectionIndex++;
-	SpawnLaneArrow(LaneIndex, HitTick);
+	SpawnLaneArrow(SRhythmFieldConfig::s_AutoSpawnLaneIndex, HitTick);
 }
 
 void CRhythmField::HideArrowForClient(int LaneIndex, int HitTick, int ClientId)
