@@ -536,10 +536,8 @@ void CGameControllerMod::OnDirectInput(int ClientId, const CNetObj_PlayerInput *
 
 	CNetObj_PlayerInput &PrevInput = m_aPrevInputs[ClientId];
 
-	const bool LeftPressed = (pNewInput->m_Direction < 0 && PrevInput.m_Direction >= 0) ||
-		(pNewInput->m_Direction == 0 && PrevInput.m_Direction > 0);
-	const bool RightPressed = (pNewInput->m_Direction > 0 && PrevInput.m_Direction <= 0) ||
-		(pNewInput->m_Direction == 0 && PrevInput.m_Direction < 0);
+	const bool LeftPressed = pNewInput->m_Direction < 0 && PrevInput.m_Direction >= 0;
+	const bool RightPressed = pNewInput->m_Direction > 0 && PrevInput.m_Direction <= 0;
 	const bool JumpPressed = CountInput(PrevInput.m_Jump, pNewInput->m_Jump).m_Presses > 0;
 
 	const bool LeftHeld = pNewInput->m_Direction < 0;
@@ -595,7 +593,7 @@ void CGameControllerMod::OnDirectInput(int ClientId, const CNetObj_PlayerInput *
 			if(m_aLanePressId[ClientId][LaneIndex] == m_aLanePressUsedId[ClientId][LaneIndex])
 				continue;
 			const int PressTick = m_aLanePressTick[ClientId][LaneIndex];
-			if(PressTick <= m_aLaneLastHitTick[ClientId][LaneIndex])
+			if(NoteTick <= m_aLaneLastHitTick[ClientId][LaneIndex])
 				continue;
 			const int RawDelta = std::abs(PressTick - NoteTick);
 			if(RawDelta > SRhythmFieldConfig::s_BadWindowTicks + HitWindowTicks)
@@ -612,7 +610,7 @@ void CGameControllerMod::OnDirectInput(int ClientId, const CNetObj_PlayerInput *
 			ScoreHit(ClientId, RatingDelta);
 			m_pRhythmField->HideArrowForClient(LaneIndex, NoteTick, ClientId);
 			m_aNoteLaneHitMask[ClientId] |= LaneMask;
-			m_aLaneLastHitTick[ClientId][LaneIndex] = PressTick;
+			m_aLaneLastHitTick[ClientId][LaneIndex] = NoteTick;
 			m_aLanePressUsedId[ClientId][LaneIndex] = m_aLanePressId[ClientId][LaneIndex];
 		}
 	}
