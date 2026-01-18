@@ -69,7 +69,6 @@ class CGameControllerMod : public IGameController
 	int m_CurrentNote;
 	int m_NextSpawnNote;
 	int m_CurrentHoldSegment;
-	int m_CurrentHoldEffect;
 	struct SRhythmScore
 	{
 		int m_Perfect;
@@ -82,6 +81,11 @@ class CGameControllerMod : public IGameController
 	CNetObj_PlayerInput m_aPrevInputs[MAX_CLIENTS];
 	int m_aLanePressTick[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
 	int m_aLaneLastHitTick[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
+	int m_aLaneHoldTick[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
+	int m_aLaneHoldStartTick[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
+	int m_aLaneHoldEndTick[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
+	bool m_aLaneHoldActive[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
+	bool m_aLaneHoldEndEffectPlayed[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
 	int m_aLanePressId[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
 	int m_aLanePressUsedId[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
 	uint8_t m_aNoteLaneHitMask[MAX_CLIENTS];
@@ -93,6 +97,8 @@ class CGameControllerMod : public IGameController
 	bool LoadDanceMapData(const char *pMapName);
 	bool FindFieldAnchorFromMap(vec2 &OutPos) const;
 	void ScoreHit(int ClientId, int RatingDelta);
+	void ResetClientState(int ClientId);
+	void TryStartHold(int ClientId, int LaneIndex, int PressTick, int HitWindowTicks, bool UseTickNotes);
 
 public:
 	CGameControllerMod(class CGameContext *pGameServer);
