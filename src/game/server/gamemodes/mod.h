@@ -3,6 +3,7 @@
 
 #include <game/server/gamecontroller.h>
 #include <game/server/entities/rhythm_field.h>
+#include <game/gamecore.h>
 
 #include <vector>
 
@@ -42,6 +43,7 @@ class CGameControllerMod : public IGameController
 		int m_HopLength;
 		float m_Bpm;
 		float m_DurationSeconds;
+		float m_ParticleFallSpeed;
 		int m_NotesCount;
 		int m_TapCount;
 		int m_HoldsCount;
@@ -93,13 +95,17 @@ class CGameControllerMod : public IGameController
 	SRhythmScore m_aScores[MAX_CLIENTS];
 	vec2 m_FieldAnchorPos;
 	bool m_FieldAnchorValid;
+	CTuningParams m_RhythmTuningBackup;
+	bool m_RhythmTuningActive;
 
 	bool LoadDanceMapData(const char *pMapName);
 	bool FindFieldAnchorFromMap(vec2 &OutPos) const;
-	void UpdateRhythmProjectileTuning();
 	void ScoreHit(int ClientId, int RatingDelta);
 	void ResetClientState(int ClientId);
 	void TryStartHold(int ClientId, int LaneIndex, int PressTick, int HitWindowTicks, bool UseTickNotes);
+	float EffectiveFallSpeedPerBeat() const;
+	void ApplyRhythmTuning();
+	void RestoreRhythmTuning();
 
 public:
 	CGameControllerMod(class CGameContext *pGameServer);

@@ -62,8 +62,12 @@ void CRhythmArrow::Snap(int SnappingClient)
 		return;
 
 	const int SnappingClientVersion = GameServer()->GetClientVersion(SnappingClient);
-	const float Speed = GameServer()->GlobalTuning()->m_GunSpeed;
-	const float StartVelScale = Speed > 0.0f ? (m_Speed * Server()->TickSpeed()) / Speed : 0.0f;
+	float StartVelScale = m_VelScale;
+	if(StartVelScale <= 0.0f)
+	{
+		const float Speed = GameServer()->GlobalTuning()->m_GunSpeed;
+		StartVelScale = Speed > 0.0f ? (m_Speed * Server()->TickSpeed()) / Speed : 0.0f;
+	}
 	const vec2 StartVel = m_Direction * StartVelScale;
 
 	if(SnappingClientVersion >= VERSION_DDNET_ENTITY_NETOBJS)

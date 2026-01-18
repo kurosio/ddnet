@@ -15,10 +15,12 @@ struct SRhythmFieldConfig
 	static constexpr float s_LaneWidth = 128.0f;
 	static constexpr float s_FieldHeight = 324.0f;
 	static constexpr float s_SpawnOffset = 256.0f;
+	static constexpr float s_ArrowTravelDistance = s_FieldHeight + s_SpawnOffset;
 	static constexpr float s_FieldViewOffsetX = -256.0f;
 	static constexpr float s_FieldViewOffsetY = -200.0f;
 	static constexpr float s_MissOffset = 64.0f;
 	static constexpr float s_LeadBeats = 2.0f;
+	static constexpr float s_DefaultFallSpeedPerBeat = s_ArrowTravelDistance / s_LeadBeats;
 	static constexpr int s_AutoSpawnLaneIndex = 1;
 	static constexpr int s_HitWindowTicks = 7;
 	static constexpr int s_PerfectWindowTicks = 2;
@@ -54,6 +56,7 @@ public:
 	float BeatPeriod() const { return m_BeatPeriod; }
 	vec2 HitZonePos() const { return m_HitZonePos; }
 	float HitZoneRadius() const { return m_HitZoneRadius; }
+	float ArrowTravelDistance() const { return m_ArrowTravelDistance + SRhythmFieldConfig::s_SpawnOffset; }
 
 private:
 	void EnsureSnapIds();

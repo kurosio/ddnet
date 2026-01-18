@@ -77,6 +77,7 @@ CGameControllerMod::CGameControllerMod(class CGameContext *pGameServer) :
 	m_pRhythmField = nullptr;
 	m_FieldAnchorPos = vec2(0.0f, 0.0f);
 	m_FieldAnchorValid = false;
+	m_RhythmTuningActive = false;
 	mem_zero(m_aPrevInputs, sizeof(m_aPrevInputs));
 	mem_zero(m_aLanePressTick, sizeof(m_aLanePressTick));
 	mem_zero(m_aLaneLastHitTick, sizeof(m_aLaneLastHitTick));
@@ -212,12 +213,52 @@ void CGameControllerMod::TickState()
 	}
 }
 
+float CGameControllerMod::EffectiveFallSpeedPerBeat() const
+{
+	if(!std::isfinite(m_Meta.m_ParticleFallSpeed) || m_Meta.m_ParticleFallSpeed <= 0.0f)
+		return SRhythmFieldConfig::s_DefaultFallSpeedPerBeat;
+	return m_Meta.m_ParticleFallSpeed;
+}
+
+void CGameControllerMod::ApplyRhythmTuning()
+{
+	if(!m_RhythmTuningActive)
+	{
+		m_RhythmTuningBackup = GameServer()->TuningList()[0];
+		m_RhythmTuningActive = true;
+	}
+
+	const float Bpm = m_Meta.m_Bpm > 0.0f ? m_Meta.m_Bpm : 120.0f;
+	const float FallSpeedPerBeat = EffectiveFallSpeedPerBeat();
+	const float GunSpeed = maximum(1.0f, FallSpeedPerBeat * (Bpm / 60.0f));
+
+	CTuningParams &Tuning = GameServer()->TuningList()[0];
+	Tuning.m_GunCurvature = 0.0f;
+	Tuning.m_GunSpeed = GunSpeed;
+
+	GameServer()->SendTuningParams(-1, 0);
+}
+
+void CGameControllerMod::RestoreRhythmTuning()
+{
+	if(!m_RhythmTuningActive)
+		return;
+
+	GameServer()->TuningList()[0] = m_RhythmTuningBackup;
+	m_RhythmTuningActive = false;
+	GameServer()->SendTuningParams(-1, 0);
+}
+
 void CGameControllerMod::ChangeState(EStageState State)
 {
 	if(m_State == State)
 		return;
 
+	const EStageState PrevState = m_State;
 	m_State = State;
+
+	if(PrevState == EStageState::STATE_ACTIVE && State != EStageState::STATE_ACTIVE)
+		RestoreRhythmTuning();
 
 	switch(m_State)
 	{
@@ -251,6 +292,7 @@ void CGameControllerMod::ChangeState(EStageState State)
 			GameServer()->SendChatTarget(-1, aBuf);
 			GameServer()->SendChatTarget(-1, "The dance competition has begun.");
 			GameServer()->CreateSoundGlobal(SOUND_SELF_MUSIC);
+			ApplyRhythmTuning();
 
 			m_CurrentNote = 0;
 			m_NextSpawnNote = 0;
@@ -375,6 +417,7 @@ bool CGameControllerMod::LoadDanceMapData(const char *pMapName)
 	const json_value &HopLength = Meta["hop_length"];
 	const json_value &Bpm = Meta["bpm"];
 	const json_value &DurationSeconds = Meta["duration_seconds"];
+	const json_value &ParticleFallSpeed = Meta["particle_fall_speed"];
 	const json_value &NotesCount = Meta["notes_count"];
 	const json_value &TapCount = Meta["tap_count"];
 	const json_value &HoldsCount = Meta["holds_count"];
@@ -384,6 +427,7 @@ bool CGameControllerMod::LoadDanceMapData(const char *pMapName)
 	Error = Error || HopLength.type != json_integer;
 	Error = Error || Bpm.type != json_double;
 	Error = Error || DurationSeconds.type != json_double;
+	Error = Error || (ParticleFallSpeed.type != json_none && ParticleFallSpeed.type != json_double && ParticleFallSpeed.type != json_integer);
 	Error = Error || NotesCount.type != json_integer;
 	Error = Error || TapCount.type != json_integer;
 	Error = Error || HoldsCount.type != json_integer;
@@ -397,11 +441,17 @@ bool CGameControllerMod::LoadDanceMapData(const char *pMapName)
 	m_Meta.m_HopLength = json_int_get(&HopLength);
 	m_Meta.m_Bpm = (float)json_double_get(&Bpm);
 	m_Meta.m_DurationSeconds = (float)json_double_get(&DurationSeconds);
+	if(ParticleFallSpeed.type == json_double)
+		m_Meta.m_ParticleFallSpeed = (float)json_double_get(&ParticleFallSpeed);
+	else if(ParticleFallSpeed.type == json_integer)
+		m_Meta.m_ParticleFallSpeed = (float)json_int_get(&ParticleFallSpeed);
+	else
+		m_Meta.m_ParticleFallSpeed = SRhythmFieldConfig::s_DefaultFallSpeedPerBeat;
+	if(!std::isfinite(m_Meta.m_ParticleFallSpeed) || m_Meta.m_ParticleFallSpeed <= 0.0f)
+		m_Meta.m_ParticleFallSpeed = SRhythmFieldConfig::s_DefaultFallSpeedPerBeat;
 	m_Meta.m_NotesCount = json_int_get(&NotesCount);
 	m_Meta.m_TapCount = json_int_get(&TapCount);
 	m_Meta.m_HoldsCount = json_int_get(&HoldsCount);
-
-	UpdateRhythmProjectileTuning();
 
 	for(unsigned i = 0; i < Notes.u.array.length; ++i)
 	{
@@ -557,23 +607,6 @@ bool CGameControllerMod::LoadDanceMapData(const char *pMapName)
 
 	json_value_free(pJsonData);
 	return true;
-}
-
-void CGameControllerMod::UpdateRhythmProjectileTuning()
-{
-	if(m_Meta.m_Bpm <= 0.0f)
-		return;
-
-	const float BeatPeriod = 60.0f / m_Meta.m_Bpm;
-	const float Speed = SRhythmFieldConfig::s_FieldHeight / BeatPeriod;
-	const float Curvature = 0.0f;
-
-	if(GlobalTuning()->m_GunSpeed == Speed && GlobalTuning()->m_GunCurvature == Curvature)
-		return;
-
-	GlobalTuning()->m_GunSpeed = Speed;
-	GlobalTuning()->m_GunCurvature = Curvature;
-	SendTuningParams(-1);
 }
 
 bool CGameControllerMod::IsLobbyMap() const
@@ -888,7 +921,9 @@ void CGameControllerMod::UpdateNotes()
 	if(m_pRhythmField)
 	{
 		m_pRhythmField->SetBpm(m_Meta.m_Bpm);
-		LeadTicks = maximum(LeadTicks, (int)std::round(m_pRhythmField->BeatIntervalTicks() * SRhythmFieldConfig::s_LeadBeats));
+		const float FallSpeedPerBeat = EffectiveFallSpeedPerBeat();
+		const float LeadBeats = m_pRhythmField->ArrowTravelDistance() / FallSpeedPerBeat;
+		LeadTicks = maximum(LeadTicks, (int)std::round(m_pRhythmField->BeatIntervalTicks() * LeadBeats));
 	}
 
 	if(LeadTicks <= 0)
