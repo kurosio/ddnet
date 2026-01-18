@@ -223,7 +223,6 @@ public:
 	CPlayer *m_apPlayers[MAX_CLIENTS];
 	// keep last input to always apply when none is sent
 	CNetObj_PlayerInput m_aLastPlayerInput[MAX_CLIENTS];
-	int m_aLastPlayerInputTick[MAX_CLIENTS];
 	bool m_aPlayerHasInput[MAX_CLIENTS];
 	CSaveTeam *m_apSavedTeams[MAX_CLIENTS];
 	CSaveHotReloadTee *m_apSavedTees[MAX_CLIENTS];
@@ -232,7 +231,6 @@ public:
 	// returns last input if available otherwise nulled PlayerInput object
 	// ClientId has to be valid
 	CNetObj_PlayerInput GetLastPlayerInput(int ClientId) const;
-	int GetLastPlayerInputTick(int ClientId) const;
 
 	IGameController *m_pController;
 	CGameWorld m_World;

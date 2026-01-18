@@ -85,7 +85,6 @@ CGameContext::CGameContext(bool Resetting) :
 		pPlayer = nullptr;
 
 	mem_zero(&m_aLastPlayerInput, sizeof(m_aLastPlayerInput));
-	std::fill(std::begin(m_aLastPlayerInputTick), std::end(m_aLastPlayerInputTick), -1);
 	std::fill(std::begin(m_aPlayerHasInput), std::end(m_aPlayerHasInput), false);
 
 	m_pController = nullptr;
@@ -193,12 +192,6 @@ CNetObj_PlayerInput CGameContext::GetLastPlayerInput(int ClientId) const
 {
 	dbg_assert(0 <= ClientId && ClientId < MAX_CLIENTS, "invalid ClientId");
 	return m_aLastPlayerInput[ClientId];
-}
-
-int CGameContext::GetLastPlayerInputTick(int ClientId) const
-{
-	dbg_assert(0 <= ClientId && ClientId < MAX_CLIENTS, "invalid ClientId");
-	return m_aLastPlayerInputTick[ClientId];
 }
 
 CCharacter *CGameContext::GetPlayerChar(int ClientId)
@@ -1466,7 +1459,6 @@ void CGameContext::OnClientPrepareInput(int ClientId, void *pInput)
 void CGameContext::OnClientDirectInput(int ClientId, const void *pInput)
 {
 	const CNetObj_PlayerInput *pPlayerInput = static_cast<const CNetObj_PlayerInput *>(pInput);
-	m_aLastPlayerInputTick[ClientId] = Server()->Tick();
 
 	if(!m_World.m_Paused)
 		m_apPlayers[ClientId]->OnDirectInput(pPlayerInput);
@@ -1727,7 +1719,6 @@ void CGameContext::OnClientEnter(int ClientId)
 
 	CPlayer *pNewPlayer = m_apPlayers[ClientId];
 	mem_zero(&m_aLastPlayerInput[ClientId], sizeof(m_aLastPlayerInput[ClientId]));
-	m_aLastPlayerInputTick[ClientId] = -1;
 	m_aPlayerHasInput[ClientId] = false;
 
 	// new info for others
