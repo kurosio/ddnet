@@ -991,8 +991,9 @@ void CGameControllerMod::OnPredictedInput(int ClientId, const CNetObj_PlayerInpu
 	if(m_State != EStageState::STATE_ACTIVE)
 		return;
 
-	const int CurrentTick = Server()->Tick();
-	ProcessRhythmInput(ClientId, pNewInput, CurrentTick, CurrentTick, m_aPrevInputs[ClientId]);
+	//const int CurrentTick = Server()->Tick();
+	//ProcessRhythmInput(ClientId, pNewInput, CurrentTick, CurrentTick, m_aPrevInputs[ClientId]);
+	// Rhythm input is handled on direct input to reduce latency.
 }
 
 void CGameControllerMod::OnPredictedEarlyInput(int ClientId, const CNetObj_PlayerInput *pNewInput)
@@ -1005,8 +1006,9 @@ void CGameControllerMod::OnPredictedEarlyInput(int ClientId, const CNetObj_Playe
 	if(m_State != EStageState::STATE_ACTIVE)
 		return;
 
-	const int CurrentTick = Server()->Tick() + 1;
-	ProcessRhythmInput(ClientId, pNewInput, CurrentTick, CurrentTick, m_aPrevEarlyInputs[ClientId]);
+	//const int CurrentTick = Server()->Tick() + 1;
+	//ProcessRhythmInput(ClientId, pNewInput, CurrentTick, CurrentTick, m_aPrevEarlyInputs[ClientId]);
+	// Rhythm input is handled on direct input to reduce latency.
 }
 
 void CGameControllerMod::OnDirectInput(int ClientId, const CNetObj_PlayerInput *pNewInput)
@@ -1015,6 +1017,12 @@ void CGameControllerMod::OnDirectInput(int ClientId, const CNetObj_PlayerInput *
 		return;
 
 	m_aLatestInputs[ClientId] = *pNewInput;
+
+	if(m_State != EStageState::STATE_ACTIVE)
+		return;
+
+	const int CurrentTick = Server()->Tick();
+	ProcessRhythmInput(ClientId, pNewInput, CurrentTick, CurrentTick, m_aPrevInputs[ClientId]);
 }
 
 void CGameControllerMod::UpdateNotes()
