@@ -654,6 +654,7 @@ void CGameControllerMod::ResetClientState(int ClientId)
 		return;
 
 	m_aPrevInputs[ClientId] = CNetObj_PlayerInput{};
+	m_aPrevEarlyInputs[ClientId] = CNetObj_PlayerInput{};
 	m_aLatestInputs[ClientId] = CNetObj_PlayerInput{};
 	for(int LaneIndex = 0; LaneIndex < LaneCount; ++LaneIndex)
 	{
@@ -851,7 +852,7 @@ bool CGameControllerMod::FindFieldAnchorFromMap(vec2 &OutPos) const
 	return false;
 }
 
-void CGameControllerMod::ProcessRhythmInput(int ClientId, const CNetObj_PlayerInput *pNewInput, int InputTick, int CurrentTick)
+void CGameControllerMod::ProcessRhythmInput(int ClientId, const CNetObj_PlayerInput *pNewInput, int InputTick, int CurrentTick, CNetObj_PlayerInput &PrevInput)
 {
 	if(!IsValidClientId(ClientId))
 		return;
@@ -868,7 +869,7 @@ void CGameControllerMod::ProcessRhythmInput(int ClientId, const CNetObj_PlayerIn
 
 	if(!m_pRhythmField)
 	{
-		m_aPrevInputs[ClientId] = *pNewInput;
+		PrevInput = *pNewInput;
 		m_aLatestInputs[ClientId] = *pNewInput;
 		return;
 	}
@@ -876,8 +877,6 @@ void CGameControllerMod::ProcessRhythmInput(int ClientId, const CNetObj_PlayerIn
 	InputTick = maximum(0, InputTick);
 	const int HitWindowTicks = g_Config.m_SvRhythmHitWindowTicks;
 	const bool UseTickNotes = m_vNoteTicks.size() == m_vNotes.size();
-
-	CNetObj_PlayerInput &PrevInput = m_aPrevInputs[ClientId];
 
 	const bool aLanePressed[LaneCount] = {
 		pNewInput->m_Direction < 0 && PrevInput.m_Direction >= 0,
@@ -976,7 +975,7 @@ void CGameControllerMod::ProcessRhythmInput(int ClientId, const CNetObj_PlayerIn
 		}
 	}
 
-	m_aPrevInputs[ClientId] = *pNewInput;
+	PrevInput = *pNewInput;
 	m_aLatestInputs[ClientId] = *pNewInput;
 }
 
@@ -991,7 +990,7 @@ void CGameControllerMod::OnPredictedInput(int ClientId, const CNetObj_PlayerInpu
 		return;
 
 	const int CurrentTick = Server()->Tick();
-	ProcessRhythmInput(ClientId, pNewInput, CurrentTick, CurrentTick);
+	ProcessRhythmInput(ClientId, pNewInput, CurrentTick, CurrentTick, m_aPrevInputs[ClientId]);
 }
 
 void CGameControllerMod::OnPredictedEarlyInput(int ClientId, const CNetObj_PlayerInput *pNewInput)
@@ -1005,7 +1004,7 @@ void CGameControllerMod::OnPredictedEarlyInput(int ClientId, const CNetObj_Playe
 		return;
 
 	const int CurrentTick = Server()->Tick() + 1;
-	ProcessRhythmInput(ClientId, pNewInput, CurrentTick, CurrentTick);
+	ProcessRhythmInput(ClientId, pNewInput, CurrentTick, CurrentTick, m_aPrevEarlyInputs[ClientId]);
 }
 
 void CGameControllerMod::OnDirectInput(int ClientId, const CNetObj_PlayerInput *pNewInput)
@@ -1013,9 +1012,7 @@ void CGameControllerMod::OnDirectInput(int ClientId, const CNetObj_PlayerInput *
 	if(!IsValidClientId(ClientId) || !pNewInput)
 		return;
 
-	const int CurrentTick = Server()->Tick();
-	const int InputTick = CurrentTick - g_Config.m_SvRhythmJitterBufferTicks;
-	ProcessRhythmInput(ClientId, pNewInput, InputTick, CurrentTick);
+	m_aLatestInputs[ClientId] = *pNewInput;
 }
 
 void CGameControllerMod::UpdateNotes()

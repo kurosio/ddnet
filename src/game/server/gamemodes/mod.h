@@ -81,6 +81,7 @@ class CGameControllerMod : public IGameController
 	};
 	CRhythmField *m_pRhythmField;
 	CNetObj_PlayerInput m_aPrevInputs[MAX_CLIENTS];
+	CNetObj_PlayerInput m_aPrevEarlyInputs[MAX_CLIENTS];
 	CNetObj_PlayerInput m_aLatestInputs[MAX_CLIENTS];
 	int m_aLanePressTick[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
 	int m_aLaneLastHitTick[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
@@ -104,7 +105,7 @@ class CGameControllerMod : public IGameController
 	void ScoreHit(int ClientId, int RatingDelta);
 	int ScorePoints(const SRhythmScore &Score) const;
 	void ResetClientState(int ClientId);
-	void ProcessRhythmInput(int ClientId, const CNetObj_PlayerInput *pNewInput, int InputTick, int CurrentTick);
+	void ProcessRhythmInput(int ClientId, const CNetObj_PlayerInput *pNewInput, int InputTick, int CurrentTick, CNetObj_PlayerInput &PrevInput);
 	void TryStartHold(int ClientId, int LaneIndex, int PressTick, int HitWindowTicks, bool UseTickNotes);
 	void SaveRhythmResults();
 	float EffectiveFallSpeedPerBeat() const;
