@@ -874,7 +874,9 @@ void CGameControllerMod::ProcessRhythmInput(int ClientId, const CNetObj_PlayerIn
 		return;
 	}
 
-	InputTick = maximum(0, InputTick);
+	const int JitterBufferTicks = std::clamp(g_Config.m_SvRhythmJitterBufferTicks, 0, 4);
+	const int AdjustedInputTick = maximum(0, InputTick - JitterBufferTicks);
+	const int AdjustedCurrentTick = maximum(0, CurrentTick - JitterBufferTicks);
 	const int HitWindowTicks = g_Config.m_SvRhythmHitWindowTicks;
 	const bool UseTickNotes = m_vNoteTicks.size() == m_vNotes.size();
 
@@ -894,10 +896,10 @@ void CGameControllerMod::ProcessRhythmInput(int ClientId, const CNetObj_PlayerIn
 		if(aLanePressed[LaneIndex])
 		{
 			m_aLanePressId[ClientId][LaneIndex]++;
-			m_aLanePressTick[ClientId][LaneIndex] = InputTick;
+			m_aLanePressTick[ClientId][LaneIndex] = AdjustedInputTick;
 		}
 		if(aLaneHeld[LaneIndex])
-			m_aLaneHoldTick[ClientId][LaneIndex] = InputTick;
+			m_aLaneHoldTick[ClientId][LaneIndex] = AdjustedInputTick;
 	}
 
 	const vec2 HitPos = m_pRhythmField->HitZonePos();
@@ -916,13 +918,13 @@ void CGameControllerMod::ProcessRhythmInput(int ClientId, const CNetObj_PlayerIn
 		const CNote &Note = m_vNotes[NoteIndex];
 		const int NoteTick = UseTickNotes ? m_vNoteTicks[NoteIndex] : NoteTimeToTick(m_RoundStartTick, Note.m_Time, Server()->TickSpeed());
 
-		if(CurrentTick < NoteTick - SRhythmFieldConfig::s_BadWindowTicks - HitWindowTicks)
+		if(AdjustedCurrentTick < NoteTick - SRhythmFieldConfig::s_BadWindowTicks - HitWindowTicks)
 			break;
 
 		if(Note.m_IsHold)
 			continue;
 
-		if(CurrentTick > NoteTick + SRhythmFieldConfig::s_BadWindowTicks + HitWindowTicks)
+		if(AdjustedCurrentTick > NoteTick + SRhythmFieldConfig::s_BadWindowTicks + HitWindowTicks)
 			continue;
 
 		int aLaneBits[LaneCount];
