@@ -289,17 +289,29 @@ bool CMysqlConnection::ConnectImpl()
 	{
 		char aCreateRace[1024];
 		char aCreateTeamrace[1024];
+		char aCreateRhythm[1024];
+		char aCreateTeamrhythm[1024];
+		char aCreateRhythmBackup[1024];
+		char aCreateTeamrhythmBackup[1024];
 		char aCreateMaps[1024];
 		char aCreateSaves[1024];
 		char aCreatePoints[1024];
 		FormatCreateRace(aCreateRace, sizeof(aCreateRace), /* Backup */ false);
 		FormatCreateTeamrace(aCreateTeamrace, sizeof(aCreateTeamrace), "VARBINARY(16)", /* Backup */ false);
+		FormatCreateRhythm(aCreateRhythm, sizeof(aCreateRhythm), /* Backup */ false);
+		FormatCreateTeamrhythm(aCreateTeamrhythm, sizeof(aCreateTeamrhythm), "VARBINARY(16)", /* Backup */ false);
+		FormatCreateRhythm(aCreateRhythmBackup, sizeof(aCreateRhythmBackup), /* Backup */ true);
+		FormatCreateTeamrhythm(aCreateTeamrhythmBackup, sizeof(aCreateTeamrhythmBackup), "VARBINARY(16)", /* Backup */ true);
 		FormatCreateMaps(aCreateMaps, sizeof(aCreateMaps));
 		FormatCreateSaves(aCreateSaves, sizeof(aCreateSaves), /* Backup */ false);
 		FormatCreatePoints(aCreatePoints, sizeof(aCreatePoints));
 
 		if(!PrepareAndExecuteStatement(aCreateRace) ||
 			!PrepareAndExecuteStatement(aCreateTeamrace) ||
+			!PrepareAndExecuteStatement(aCreateRhythm) ||
+			!PrepareAndExecuteStatement(aCreateTeamrhythm) ||
+			!PrepareAndExecuteStatement(aCreateRhythmBackup) ||
+			!PrepareAndExecuteStatement(aCreateTeamrhythmBackup) ||
 			!PrepareAndExecuteStatement(aCreateMaps) ||
 			!PrepareAndExecuteStatement(aCreateSaves) ||
 			!PrepareAndExecuteStatement(aCreatePoints))

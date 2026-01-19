@@ -157,6 +157,12 @@ bool CSqliteConnection::ConnectImpl(char *pError, int ErrorSize)
 		FormatCreateTeamrace(aBuf, sizeof(aBuf), "BLOB", /* Backup */ false);
 		if(!Execute(aBuf, pError, ErrorSize))
 			return false;
+		FormatCreateRhythm(aBuf, sizeof(aBuf), /* Backup */ false);
+		if(!Execute(aBuf, pError, ErrorSize))
+			return false;
+		FormatCreateTeamrhythm(aBuf, sizeof(aBuf), "BLOB", /* Backup */ false);
+		if(!Execute(aBuf, pError, ErrorSize))
+			return false;
 		FormatCreateMaps(aBuf, sizeof(aBuf));
 		if(!Execute(aBuf, pError, ErrorSize))
 			return false;
@@ -171,6 +177,12 @@ bool CSqliteConnection::ConnectImpl(char *pError, int ErrorSize)
 		if(!Execute(aBuf, pError, ErrorSize))
 			return false;
 		FormatCreateTeamrace(aBuf, sizeof(aBuf), "BLOB", /* Backup */ true);
+		if(!Execute(aBuf, pError, ErrorSize))
+			return false;
+		FormatCreateRhythm(aBuf, sizeof(aBuf), /* Backup */ true);
+		if(!Execute(aBuf, pError, ErrorSize))
+			return false;
+		FormatCreateTeamrhythm(aBuf, sizeof(aBuf), "BLOB", /* Backup */ true);
 		if(!Execute(aBuf, pError, ErrorSize))
 			return false;
 		FormatCreateSaves(aBuf, sizeof(aBuf), /* Backup */ true);
