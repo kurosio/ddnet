@@ -129,7 +129,7 @@ bool CTeamrank::GetSqlTop5Team(IDbConnection *pSqlServer, bool *pEnd, char *pErr
 				break;
 			}
 		}
-		str_format(paMessages[*Line], sizeof(paMessages[*Line]), "%d. %s Team Score: %d points",
+		str_format(paMessages[*Line], sizeof(paMessages[*Line]), "%d. %s Team Time: %d points",
 			Rank, aNames, Points);
 		if(Last)
 		{
@@ -887,7 +887,7 @@ bool CScoreWorker::ShowRank(IDbConnection *pSqlServer, const ISqlData *pGameData
 		if(g_Config.m_SvHideScore)
 		{
 			str_format(pResult->m_Data.m_aaMessages[0], sizeof(pResult->m_Data.m_aaMessages[0]),
-				"Your score: %d points", Points);
+				"Your time: %d points", Points);
 		}
 		else
 		{
@@ -993,13 +993,13 @@ bool CScoreWorker::ShowTeamRank(IDbConnection *pSqlServer, const ISqlData *pGame
 		if(g_Config.m_SvHideScore)
 		{
 			str_format(pResult->m_Data.m_aaMessages[0], sizeof(pResult->m_Data.m_aaMessages[0]),
-				"Your team score: %d points, better than %d%%", Points, BetterThanPercent);
+				"Your team time: %d points, better than %d%%", Points, BetterThanPercent);
 		}
 		else
 		{
 			pResult->m_MessageKind = CScorePlayerResult::ALL;
 			str_format(pResult->m_Data.m_aaMessages[0], sizeof(pResult->m_Data.m_aaMessages[0]),
-				"%d. %s Team score: %d points, better than %d%%, requested by %s",
+				"%d. %s Team time: %d points, better than %d%%, requested by %s",
 				Rank, aFormattedNames, Points, BetterThanPercent, pData->m_aRequestingPlayer);
 		}
 	}
@@ -1060,7 +1060,7 @@ bool CScoreWorker::ShowTop(IDbConnection *pSqlServer, const ISqlData *pGameData,
 		int Points = pSqlServer->GetInt(2);
 		int Rank = pSqlServer->GetInt(3);
 		str_format(pResult->m_Data.m_aaMessages[Line], sizeof(pResult->m_Data.m_aaMessages[Line]),
-			"%d. %s Score: %d points", Rank, aName, Points);
+			"%d. %s Time: %d points", Rank, aName, Points);
 
 		Line++;
 	}
@@ -1094,7 +1094,7 @@ bool CScoreWorker::ShowTop(IDbConnection *pSqlServer, const ISqlData *pGameData,
 		int Points = pSqlServer->GetInt(2);
 		int Rank = pSqlServer->GetInt(3);
 		str_format(pResult->m_Data.m_aaMessages[Line], sizeof(pResult->m_Data.m_aaMessages[Line]),
-			"%d. %s Score: %d points", Rank, aName, Points);
+			"%d. %s Time: %d points", Rank, aName, Points);
 		Line++;
 	}
 
@@ -1269,7 +1269,7 @@ bool CScoreWorker::ShowPlayerTeamTop5(IDbConnection *pSqlServer, const ISqlData 
 					str_append(aFormattedNames, " & ");
 			}
 
-			str_format(paMessages[Line], sizeof(paMessages[Line]), "%d. %s Team Score: %d points",
+			str_format(paMessages[Line], sizeof(paMessages[Line]), "%d. %s Team Time: %d points",
 				Rank, aFormattedNames, Points);
 			if(Last)
 			{
