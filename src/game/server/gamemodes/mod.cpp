@@ -170,16 +170,6 @@ void CGameControllerMod::OnPlayerConnect(CPlayer *pPlayer)
 	IGameController::OnPlayerConnect(pPlayer);
 	int ClientId = pPlayer->GetCid();
 
-	// init the player
-	if(!IsLobbyMap())
-	{
-		GameServer()->Score()->PlayerData(ClientId)->Reset();
-		Server()->SetClientScore(ClientId, std::nullopt);
-		// Can't set score here as LoadScore() is threaded, run it in
-		// LoadScoreThreaded() instead
-		GameServer()->Score()->LoadPlayerData(ClientId);
-	}
-
 	if(!Server()->ClientPrevIngame(ClientId))
 	{
 		char aBuf[512];
@@ -187,8 +177,19 @@ void CGameControllerMod::OnPlayerConnect(CPlayer *pPlayer)
 		GameServer()->SendChat(-1, TEAM_ALL, aBuf, -1, CGameContext::FLAG_SIX);
 	}
 
-	if(IsLobbyMap())
+	const bool IsLobby = IsLobbyMap();
+	if(IsLobby)
+	{
 		GameServer()->SendChatTarget(ClientId, "You are in the lobby, start voting for the start of the music battle!");
+		GameServer()->Score()->ShowTopPoints(ClientId);
+	}
+	else
+	{
+		GameServer()->Score()->PlayerData(ClientId)->Reset();
+		Server()->SetClientScore(ClientId, std::nullopt);
+		GameServer()->Score()->LoadPlayerData(ClientId);
+		GameServer()->Score()->ShowTop(ClientId);
+	}
 }
 
 void CGameControllerMod::TickState()
