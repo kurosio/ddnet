@@ -104,6 +104,7 @@ class CGameControllerMod : public IGameController
 	void ScoreHit(int ClientId, int RatingDelta);
 	int ScorePoints(const SRhythmScore &Score) const;
 	void ResetClientState(int ClientId);
+	void ProcessRhythmInput(int ClientId, const CNetObj_PlayerInput *pNewInput, int InputTick, int CurrentTick);
 	void TryStartHold(int ClientId, int LaneIndex, int PressTick, int HitWindowTicks, bool UseTickNotes);
 	void SaveRhythmResults();
 	float EffectiveFallSpeedPerBeat() const;
@@ -120,6 +121,7 @@ public:
 	int SnapPlayerScore(int SnappingClient, CPlayer *pPlayer) override;
 	void OnDirectInput(int ClientId, const CNetObj_PlayerInput *pNewInput) override;
 	void OnPredictedInput(int ClientId, const CNetObj_PlayerInput *pNewInput) override;
+	void OnPredictedEarlyInput(int ClientId, const CNetObj_PlayerInput *pNewInput) override;
 
 	void TickState();
 	void ChangeState(EStageState State);

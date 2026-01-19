@@ -1524,6 +1524,9 @@ void CGameContext::OnClientPredictedEarlyInput(int ClientId, const void *pInput)
 	if(!m_World.m_Paused)
 		m_apPlayers[ClientId]->OnPredictedEarlyInput(pApplyInput);
 
+	if(!m_World.m_Paused)
+		m_pController->OnPredictedEarlyInput(ClientId, pApplyInput);
+
 	if(m_TeeHistorianActive)
 	{
 		m_TeeHistorian.RecordPlayerInput(ClientId, m_apPlayers[ClientId]->GetUniqueCid(), pApplyInput);

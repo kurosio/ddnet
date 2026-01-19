@@ -146,6 +146,7 @@ public:
 	virtual void Snap(int SnappingClient);
 	virtual void OnDirectInput(int ClientId, const CNetObj_PlayerInput *pNewInput) {}
 	virtual void OnPredictedInput(int ClientId, const CNetObj_PlayerInput *pNewInput) {}
+	virtual void OnPredictedEarlyInput(int ClientId, const CNetObj_PlayerInput *pNewInput) {}
 
 	/**
 	 * Sets the score value that will be shown in the scoreboard.
