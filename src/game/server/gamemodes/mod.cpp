@@ -20,7 +20,7 @@
 // Exchange this to a string that identifies your game mode.
 // DM, TDM and CTF are reserved for teeworlds original modes.
 // DDraceNetwork and TestDDraceNetwork are used by DDNet.
-#define GAME_TYPE_NAME "Dance"
+#define GAME_TYPE_NAME "Rhythm"
 
 namespace
 {
@@ -357,6 +357,19 @@ void CGameControllerMod::ChangeState(EStageState State)
 			}
 			break;
 	}
+}
+
+int CGameControllerMod::SnapPlayerScore(int SnappingClient, CPlayer *pPlayer)
+{
+	if(!pPlayer)
+		return 0;
+
+	const int ClientId = pPlayer->GetCid();
+	if(!IsValidClientId(ClientId))
+		return 0;
+
+	const SRhythmScore &Score = m_aScores[ClientId];
+	return Score.m_Perfect * 3 + Score.m_Good * 2 + Score.m_Bad;
 }
 
 bool CGameControllerMod::LoadDanceMapData(const char *pMapName)

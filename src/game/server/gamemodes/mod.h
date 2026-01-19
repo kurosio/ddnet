@@ -114,6 +114,7 @@ public:
 	void Tick() override;
 	void OnPlayerConnect(class CPlayer *pPlayer) override;
 	void Snap(int SnappingClient) override;
+	int SnapPlayerScore(int SnappingClient, CPlayer *pPlayer) override;
 	void OnDirectInput(int ClientId, const CNetObj_PlayerInput *pNewInput) override;
 
 	void TickState();
