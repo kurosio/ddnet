@@ -102,13 +102,11 @@ bool CTeamrank::SamePlayers(const std::vector<std::string> *pvSortedNames)
 
 bool CTeamrank::GetSqlTop5Team(IDbConnection *pSqlServer, bool *pEnd, char *pError, int ErrorSize, char (*paMessages)[512], int *Line, int Count)
 {
-	char aTime[32];
 	int StartLine = *Line;
 	for(*Line = StartLine; *Line < StartLine + Count; (*Line)++)
 	{
 		bool Last = false;
-		float Time = pSqlServer->GetFloat(2);
-		str_time_float(Time, TIME_HOURS_CENTISECS, aTime, sizeof(aTime));
+		int Points = pSqlServer->GetInt(2);
 		int Rank = pSqlServer->GetInt(3);
 		int TeamSize = pSqlServer->GetInt(4);
 
@@ -131,8 +129,8 @@ bool CTeamrank::GetSqlTop5Team(IDbConnection *pSqlServer, bool *pEnd, char *pErr
 				break;
 			}
 		}
-		str_format(paMessages[*Line], sizeof(paMessages[*Line]), "%d. %s Team Score: %s",
-			Rank, aNames, aTime);
+		str_format(paMessages[*Line], sizeof(paMessages[*Line]), "%d. %s Team Score: %d points",
+			Rank, aNames, Points);
 		if(Last)
 		{
 			(*Line)++;
@@ -150,7 +148,7 @@ bool CScoreWorker::LoadBestScore(IDbConnection *pSqlServer, const ISqlData *pGam
 	char aBuf[512];
 	// get the best score
 	str_format(aBuf, sizeof(aBuf),
-		"SELECT Time FROM %s_rhythm WHERE Map=? ORDER BY `Time` ASC LIMIT 1",
+		"SELECT Points FROM %s_rhythm WHERE Map=? ORDER BY Points DESC LIMIT 1",
 		pSqlServer->GetPrefix());
 	if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -182,14 +180,14 @@ bool CScoreWorker::LoadPlayerData(IDbConnection *pSqlServer, const ISqlData *pGa
 	// get best rhythm score
 	str_format(aBuf, sizeof(aBuf),
 		"SELECT"
-		"  (SELECT Time FROM %s_rhythm WHERE Map = ? AND Name = ? ORDER BY Time ASC LIMIT 1) AS minTime, "
+		"  (SELECT Points FROM %s_rhythm WHERE Map = ? AND Name = ? ORDER BY Points DESC LIMIT 1) AS maxPoints, "
 		"  cp1, cp2, cp3, cp4, cp5, cp6, cp7, cp8, cp9, cp10, cp11, cp12, cp13, cp14, "
 		"  cp15, cp16, cp17, cp18, cp19, cp20, cp21, cp22, cp23, cp24, cp25, "
 		"  (cp1 + cp2 + cp3 + cp4 + cp5 + cp6 + cp7 + cp8 + cp9 + cp10 + cp11 + cp12 + cp13 + cp14 + "
-		"  cp15 + cp16 + cp17 + cp18 + cp19 + cp20 + cp21 + cp22 + cp23 + cp24 + cp25 > 0) AS hasCP, Time "
+		"  cp15 + cp16 + cp17 + cp18 + cp19 + cp20 + cp21 + cp22 + cp23 + cp24 + cp25 > 0) AS hasCP, Points "
 		"FROM %s_rhythm "
 		"WHERE Map = ? AND Name = ? "
-		"ORDER BY hasCP DESC, Time ASC "
+		"ORDER BY hasCP DESC, Points DESC "
 		"LIMIT 1",
 		pSqlServer->GetPrefix(), pSqlServer->GetPrefix());
 	if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
@@ -213,8 +211,8 @@ bool CScoreWorker::LoadPlayerData(IDbConnection *pSqlServer, const ISqlData *pGa
 		if(!pSqlServer->IsNull(1))
 		{
 			// get the best score
-			float Time = pSqlServer->GetFloat(1);
-			pResult->m_Data.m_Info.m_Score = Time;
+			float Points = pSqlServer->GetFloat(1);
+			pResult->m_Data.m_Info.m_Score = Points;
 		}
 
 		for(int i = 0; i < NUM_CHECKPOINTS; i++)
@@ -830,14 +828,14 @@ bool CScoreWorker::ShowRank(IDbConnection *pSqlServer, const ISqlData *pGameData
 	// check sort method
 	char aBuf[600];
 	str_format(aBuf, sizeof(aBuf),
-		"SELECT Ranking, Time, PercentRank "
+		"SELECT Ranking, Points, PercentRank "
 		"FROM ("
-		"  SELECT RANK() OVER w AS Ranking, PERCENT_RANK() OVER w as PercentRank, MIN(Time) AS Time, Name "
+		"  SELECT RANK() OVER w AS Ranking, PERCENT_RANK() OVER w as PercentRank, MAX(Points) AS Points, Name "
 		"  FROM %s_rhythm "
 		"  WHERE Map = ? "
 		"  AND Server LIKE ? "
 		"  GROUP BY Name "
-		"  WINDOW w AS (ORDER BY MIN(Time))"
+		"  WINDOW w AS (ORDER BY MAX(Points) DESC)"
 		") as a "
 		"WHERE Name = ?",
 		pSqlServer->GetPrefix());
@@ -884,13 +882,12 @@ bool CScoreWorker::ShowRank(IDbConnection *pSqlServer, const ISqlData *pGameData
 	if(!End)
 	{
 		int Rank = pSqlServer->GetInt(1);
-		float Time = pSqlServer->GetFloat(2);
-		str_time_float(Time, TIME_HOURS_CENTISECS, aBuf, sizeof(aBuf));
+		int Points = pSqlServer->GetInt(2);
 
 		if(g_Config.m_SvHideScore)
 		{
 			str_format(pResult->m_Data.m_aaMessages[0], sizeof(pResult->m_Data.m_aaMessages[0]),
-				"Your score: %s", aBuf);
+				"Your score: %d points", Points);
 		}
 		else
 		{
@@ -901,26 +898,26 @@ bool CScoreWorker::ShowRank(IDbConnection *pSqlServer, const ISqlData *pGameData
 			if(str_comp_nocase(pData->m_aRequestingPlayer, pData->m_aName) == 0)
 			{
 				str_format(pResult->m_Data.m_aaMessages[0], sizeof(pResult->m_Data.m_aaMessages[0]),
-					"%s - %s - better than %d%%",
-					pData->m_aName, aBuf, BetterThanPercent);
+					"%s - %d points - better than %d%%",
+					pData->m_aName, Points, BetterThanPercent);
 			}
 			else
 			{
 				str_format(pResult->m_Data.m_aaMessages[0], sizeof(pResult->m_Data.m_aaMessages[0]),
-					"%s - %s - better than %d%% - requested by %s",
-					pData->m_aName, aBuf, BetterThanPercent, pData->m_aRequestingPlayer);
+					"%s - %d points - better than %d%% - requested by %s",
+					pData->m_aName, Points, BetterThanPercent, pData->m_aRequestingPlayer);
 			}
 
 			if(g_Config.m_SvRegionalRankings)
 			{
 				str_format(pResult->m_Data.m_aaMessages[1], sizeof(pResult->m_Data.m_aaMessages[1]),
-					"Global rank %d - %s %s",
-					Rank, pData->m_aServer, aRegionalRank);
+					"Global rank %d (%d points) - %s %s",
+					Rank, Points, pData->m_aServer, aRegionalRank);
 			}
 			else
 			{
 				str_format(pResult->m_Data.m_aaMessages[1], sizeof(pResult->m_Data.m_aaMessages[1]),
-					"Global rank %d", Rank);
+					"Global rank %d (%d points)", Rank, Points);
 			}
 		}
 	}
@@ -941,18 +938,18 @@ bool CScoreWorker::ShowTeamRank(IDbConnection *pSqlServer, const ISqlData *pGame
 	char aBuf[2400];
 
 	str_format(aBuf, sizeof(aBuf),
-		"SELECT l.Id, Name, Time, Ranking, PercentRank "
+		"SELECT l.Id, Name, Points, Ranking, PercentRank "
 		"FROM (" // teamrank score board
 		"  SELECT RANK() OVER w AS Ranking, PERCENT_RANK() OVER w AS PercentRank, Id "
 		"  FROM %s_teamrhythm "
 		"  WHERE Map = ? "
 		"  GROUP BY ID "
-		"  WINDOW w AS (ORDER BY Min(Time))"
+		"  WINDOW w AS (ORDER BY Max(Points) DESC)"
 		") AS TeamRank INNER JOIN (" // select rank with Name in team
 		"  SELECT ID "
 		"  FROM %s_teamrhythm "
 		"  WHERE Map = ? AND Name = ? "
-		"  ORDER BY Time "
+		"  ORDER BY Points DESC "
 		"  LIMIT 1"
 		") AS l ON TeamRank.Id = l.Id "
 		"INNER JOIN %s_teamrhythm AS r ON l.Id = r.Id ",
@@ -972,8 +969,7 @@ bool CScoreWorker::ShowTeamRank(IDbConnection *pSqlServer, const ISqlData *pGame
 	}
 	if(!End)
 	{
-		float Time = pSqlServer->GetFloat(3);
-		str_time_float(Time, TIME_HOURS_CENTISECS, aBuf, sizeof(aBuf));
+		int Points = pSqlServer->GetInt(3);
 		int Rank = pSqlServer->GetInt(4);
 		// CEIL and FLOOR are not supported in SQLite
 		int BetterThanPercent = std::floor(100.0f - 100.0f * pSqlServer->GetFloat(5));
@@ -997,14 +993,14 @@ bool CScoreWorker::ShowTeamRank(IDbConnection *pSqlServer, const ISqlData *pGame
 		if(g_Config.m_SvHideScore)
 		{
 			str_format(pResult->m_Data.m_aaMessages[0], sizeof(pResult->m_Data.m_aaMessages[0]),
-				"Your team score: %s, better than %d%%", aBuf, BetterThanPercent);
+				"Your team score: %d points, better than %d%%", Points, BetterThanPercent);
 		}
 		else
 		{
 			pResult->m_MessageKind = CScorePlayerResult::ALL;
 			str_format(pResult->m_Data.m_aaMessages[0], sizeof(pResult->m_Data.m_aaMessages[0]),
-				"%d. %s Team score: %s, better than %d%%, requested by %s",
-				Rank, aFormattedNames, aBuf, BetterThanPercent, pData->m_aRequestingPlayer);
+				"%d. %s Team score: %d points, better than %d%%, requested by %s",
+				Rank, aFormattedNames, Points, BetterThanPercent, pData->m_aRequestingPlayer);
 		}
 	}
 	else
@@ -1027,14 +1023,14 @@ bool CScoreWorker::ShowTop(IDbConnection *pSqlServer, const ISqlData *pGameData,
 	// check sort method
 	char aBuf[512];
 	str_format(aBuf, sizeof(aBuf),
-		"SELECT Name, Time, Ranking "
+		"SELECT Name, Points, Ranking "
 		"FROM ("
-		"  SELECT RANK() OVER w AS Ranking, MIN(Time) AS Time, Name "
+		"  SELECT RANK() OVER w AS Ranking, MAX(Points) AS Points, Name "
 		"  FROM %s_rhythm "
 		"  WHERE Map = ? "
 		"  AND Server LIKE ? "
 		"  GROUP BY Name "
-		"  WINDOW w AS (ORDER BY MIN(Time))"
+		"  WINDOW w AS (ORDER BY MAX(Points) DESC)"
 		") as a "
 		"ORDER BY Ranking %s "
 		"LIMIT %d, ?",
@@ -1055,18 +1051,16 @@ bool CScoreWorker::ShowTop(IDbConnection *pSqlServer, const ISqlData *pGameData,
 	str_copy(pResult->m_Data.m_aaMessages[Line], "------------ Global Top ------------", sizeof(pResult->m_Data.m_aaMessages[Line]));
 	Line++;
 
-	char aTime[32];
 	bool End = false;
 
 	while(pSqlServer->Step(&End, pError, ErrorSize) && !End)
 	{
 		char aName[MAX_NAME_LENGTH];
 		pSqlServer->GetString(1, aName, sizeof(aName));
-		float Time = pSqlServer->GetFloat(2);
-		str_time_float(Time, TIME_HOURS_CENTISECS, aTime, sizeof(aTime));
+		int Points = pSqlServer->GetInt(2);
 		int Rank = pSqlServer->GetInt(3);
 		str_format(pResult->m_Data.m_aaMessages[Line], sizeof(pResult->m_Data.m_aaMessages[Line]),
-			"%d. %s Score: %s", Rank, aName, aTime);
+			"%d. %s Score: %d points", Rank, aName, Points);
 
 		Line++;
 	}
@@ -1097,11 +1091,10 @@ bool CScoreWorker::ShowTop(IDbConnection *pSqlServer, const ISqlData *pGameData,
 	{
 		char aName[MAX_NAME_LENGTH];
 		pSqlServer->GetString(1, aName, sizeof(aName));
-		float Time = pSqlServer->GetFloat(2);
-		str_time_float(Time, TIME_HOURS_CENTISECS, aTime, sizeof(aTime));
+		int Points = pSqlServer->GetInt(2);
 		int Rank = pSqlServer->GetInt(3);
 		str_format(pResult->m_Data.m_aaMessages[Line], sizeof(pResult->m_Data.m_aaMessages[Line]),
-			"%d. %s Score: %s", Rank, aName, aTime);
+			"%d. %s Score: %d points", Rank, aName, Points);
 		Line++;
 	}
 
@@ -1122,22 +1115,22 @@ bool CScoreWorker::ShowTeamTop5(IDbConnection *pSqlServer, const ISqlData *pGame
 	char aBuf[1024];
 
 	str_format(aBuf, sizeof(aBuf),
-		"SELECT Name, Time, Ranking, TeamSize "
+		"SELECT Name, Points, Ranking, TeamSize "
 		"FROM ("
 		"  SELECT TeamSize, Ranking, Id, Server "
 		"  FROM (" // teamrank score board
 		"    SELECT RANK() OVER w AS Ranking, COUNT(*) AS Teamsize, Id, Server "
 		"    FROM ("
-		"      SELECT tr.Map, tr.Time, tr.Id, ("
+		"      SELECT tr.Map, tr.Points, tr.Id, ("
 		"        SELECT rr.Server FROM %s_rhythm AS rr "
-		"        WHERE rr.Map = tr.Map AND rr.Name = tr.Name AND rr.Time = tr.Time "
+		"        WHERE rr.Map = tr.Map AND rr.Name = tr.Name AND rr.Points = tr.Points "
 		"        LIMIT 1"
 		"      ) AS Server "
 		"      FROM %s_teamrhythm AS tr "
 		"      WHERE tr.Map = ? "
 		"    ) AS ll "
 		"    GROUP BY ID "
-		"    WINDOW w AS (ORDER BY Min(Time))"
+		"    WINDOW w AS (ORDER BY Max(Points) DESC)"
 		"  ) as l1 "
 		"  WHERE Server LIKE ? "
 		"  ORDER BY Ranking %s "
@@ -1218,22 +1211,22 @@ bool CScoreWorker::ShowPlayerTeamTop5(IDbConnection *pSqlServer, const ISqlData 
 	char aBuf[2400];
 
 	str_format(aBuf, sizeof(aBuf),
-		"SELECT l.Id, Name, Time, Ranking "
+		"SELECT l.Id, Name, Points, Ranking "
 		"FROM (" // teamrank score board
 		"  SELECT RANK() OVER w AS Ranking, Id "
 		"  FROM %s_teamrhythm "
 		"  WHERE Map = ? "
 		"  GROUP BY ID "
-		"  WINDOW w AS (ORDER BY Min(Time))"
+		"  WINDOW w AS (ORDER BY Max(Points) DESC)"
 		") AS TeamRank INNER JOIN (" // select rank with Name in team
 		"  SELECT ID "
 		"  FROM %s_teamrhythm "
 		"  WHERE Map = ? AND Name = ? "
-		"  ORDER BY Time %s "
+		"  ORDER BY Points %s "
 		"  LIMIT %d, 5 "
 		") AS l ON TeamRank.Id = l.Id "
 		"INNER JOIN %s_teamrhythm AS r ON l.Id = r.Id "
-		"ORDER BY Time %s, l.Id, Name ASC",
+		"ORDER BY Points %s, l.Id, Name ASC",
 		pSqlServer->GetPrefix(), pSqlServer->GetPrefix(), pOrder, LimitStart, pSqlServer->GetPrefix(), pOrder);
 	if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -1256,8 +1249,7 @@ bool CScoreWorker::ShowPlayerTeamTop5(IDbConnection *pSqlServer, const ISqlData 
 
 		for(Line = 1; Line < 6; Line++) // print
 		{
-			float Time = pSqlServer->GetFloat(3);
-			str_time_float(Time, TIME_HOURS_CENTISECS, aBuf, sizeof(aBuf));
+			int Points = pSqlServer->GetInt(3);
 			int Rank = pSqlServer->GetInt(4);
 			CTeamrank Teamrank;
 			bool Last;
@@ -1277,8 +1269,8 @@ bool CScoreWorker::ShowPlayerTeamTop5(IDbConnection *pSqlServer, const ISqlData 
 					str_append(aFormattedNames, " & ");
 			}
 
-			str_format(paMessages[Line], sizeof(paMessages[Line]), "%d. %s Team Score: %s",
-				Rank, aFormattedNames, aBuf);
+			str_format(paMessages[Line], sizeof(paMessages[Line]), "%d. %s Team Score: %d points",
+				Rank, aFormattedNames, Points);
 			if(Last)
 			{
 				Line++;
