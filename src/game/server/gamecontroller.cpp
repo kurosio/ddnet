@@ -194,6 +194,11 @@ bool IGameController::CanSpawn(int Team, vec2 *pOutPos, int ClientId)
 	return Eval.m_Got;
 }
 
+bool IGameController::AllowKill(int ClientId) const
+{
+	return true;
+}
+
 bool IGameController::OnEntity(int Index, int x, int y, int Layer, int Flags, bool Initial, int Number)
 {
 	dbg_assert(Index >= 0, "Invalid entity index");

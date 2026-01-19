@@ -123,6 +123,8 @@ public:
 	void OnDirectInput(int ClientId, const CNetObj_PlayerInput *pNewInput) override;
 	void OnPredictedInput(int ClientId, const CNetObj_PlayerInput *pNewInput) override;
 	void OnPredictedEarlyInput(int ClientId, const CNetObj_PlayerInput *pNewInput) override;
+	bool CanSpawn(int Team, vec2 *pOutPos, int ClientId) override;
+	bool AllowKill(int ClientId) const override;
 
 	void TickState();
 	void ChangeState(EStageState State);

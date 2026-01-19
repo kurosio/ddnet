@@ -98,6 +98,10 @@ CGameControllerMod::CGameControllerMod(class CGameContext *pGameServer) :
 	{
 		LoadDanceMapData(Server()->GetMapName());
 	}
+	else
+	{
+		DoWarmup(-1);
+	}
 }
 
 CGameControllerMod::~CGameControllerMod() = default;
@@ -391,6 +395,22 @@ int CGameControllerMod::SnapPlayerScore(int SnappingClient, CPlayer *pPlayer)
 		return 0;
 
 	return ScorePoints(m_aScores[ClientId]);
+}
+
+bool CGameControllerMod::CanSpawn(int Team, vec2 *pOutPos, int ClientId)
+{
+	if(!IsLobbyMap() && (m_State == EStageState::STATE_WARMUP || m_State == EStageState::STATE_ENTER))
+	{
+		if(CanSpawnIn(SPAWNTYPE_RED, pOutPos, ClientId))
+			return true;
+	}
+
+	return IGameController::CanSpawn(Team, pOutPos, ClientId);
+}
+
+bool CGameControllerMod::AllowKill(int ClientId) const
+{
+	return m_State != EStageState::STATE_ACTIVE;
 }
 
 bool CGameControllerMod::LoadDanceMapData(const char *pMapName)

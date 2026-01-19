@@ -2463,6 +2463,11 @@ void CGameContext::ConProtectedKill(IConsole::IResult *pResult, void *pUserData)
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 	if(!pPlayer)
 		return;
+	if(!pSelf->m_pController->AllowKill(pResult->m_ClientId))
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "Killing is disabled during the rhythm round.");
+		return;
+	}
 	CCharacter *pChr = pPlayer->GetCharacter();
 	if(!pChr)
 		return;

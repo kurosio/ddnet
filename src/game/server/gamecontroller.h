@@ -203,6 +203,7 @@ public:
 
 	// spawn
 	virtual bool CanSpawn(int Team, vec2 *pOutPos, int ClientId);
+	virtual bool AllowKill(int ClientId) const;
 
 	virtual void DoTeamChange(class CPlayer *pPlayer, int Team, bool DoChatMsg = true);
 

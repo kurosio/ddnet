@@ -2976,6 +2976,11 @@ void CGameContext::OnKillNetMessage(const CNetMsg_Cl_Kill *pMsg, int ClientId)
 		return;
 	}
 	CPlayer *pPlayer = m_apPlayers[ClientId];
+	if(!m_pController->AllowKill(ClientId))
+	{
+		SendChatTarget(ClientId, "Killing is disabled during the rhythm round.");
+		return;
+	}
 	if(pPlayer->m_LastKill && pPlayer->m_LastKill + Server()->TickSpeed() * g_Config.m_SvKillDelay > Server()->Tick())
 		return;
 	if(pPlayer->IsPaused())

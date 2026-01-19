@@ -469,6 +469,11 @@ void CGameContext::ConKill(IConsole::IResult *pResult, void *pUserData)
 
 	if(!pPlayer || (pPlayer->m_LastKill && pPlayer->m_LastKill + pSelf->Server()->TickSpeed() * g_Config.m_SvKillDelay > pSelf->Server()->Tick()))
 		return;
+	if(!pSelf->m_pController->AllowKill(pResult->m_ClientId))
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "Killing is disabled during the rhythm round.");
+		return;
+	}
 
 	pPlayer->m_LastKill = pSelf->Server()->Tick();
 	pPlayer->KillCharacter(WEAPON_SELF);
