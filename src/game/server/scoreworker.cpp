@@ -919,9 +919,9 @@ bool CScoreWorker::ShowTop(IDbConnection *pSqlServer, const ISqlData *pGameData,
 	pSqlServer->BindString(2, pAny);
 	pSqlServer->BindInt(3, 5);
 
-	// show top
 	int Line = 0;
-	str_copy(pResult->m_Data.m_aaMessages[Line], "------------ Global Top ------------", sizeof(pResult->m_Data.m_aaMessages[Line]));
+	str_format(pResult->m_Data.m_aaMessages[Line], sizeof(pResult->m_Data.m_aaMessages[Line]),
+		"------------ %s Top ------------", pData->m_aMap);
 	Line++;
 
 	bool End = false;
@@ -938,38 +938,14 @@ bool CScoreWorker::ShowTop(IDbConnection *pSqlServer, const ISqlData *pGameData,
 		Line++;
 	}
 
-	if(!g_Config.m_SvRegionalRankings)
+	if(End && Line == 1)
 	{
-		str_copy(pResult->m_Data.m_aaMessages[Line], "-----------------------------------------", sizeof(pResult->m_Data.m_aaMessages[Line]));
-		return End;
-	}
-
-	char aServerLike[16];
-	str_format(aServerLike, sizeof(aServerLike), "%%%s%%", pData->m_aServer);
-
-	if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
-	{
-		return false;
-	}
-	pSqlServer->BindString(1, pData->m_aMap);
-	pSqlServer->BindString(2, aServerLike);
-	pSqlServer->BindInt(3, 3);
-
-	str_format(pResult->m_Data.m_aaMessages[Line], sizeof(pResult->m_Data.m_aaMessages[Line]),
-		"------------ %s Top ------------", pData->m_aServer);
-	Line++;
-
-	// show top
-	while(pSqlServer->Step(&End, pError, ErrorSize) && !End)
-	{
-		char aName[MAX_NAME_LENGTH];
-		pSqlServer->GetString(1, aName, sizeof(aName));
-		int Points = pSqlServer->GetInt(2);
-		int Rank = pSqlServer->GetInt(3);
 		str_format(pResult->m_Data.m_aaMessages[Line], sizeof(pResult->m_Data.m_aaMessages[Line]),
-			"%d. %s Score: %d points", Rank, aName, Points);
+			"No scores recorded for %s yet", pData->m_aMap);
 		Line++;
 	}
+
+	str_copy(pResult->m_Data.m_aaMessages[Line], "-----------------------------------------", sizeof(pResult->m_Data.m_aaMessages[Line]));
 
 	return End;
 }

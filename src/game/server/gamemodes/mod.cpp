@@ -187,7 +187,6 @@ void CGameControllerMod::OnPlayerConnect(CPlayer *pPlayer)
 	{
 		GameServer()->Score()->PlayerData(ClientId)->Reset();
 		Server()->SetClientScore(ClientId, std::nullopt);
-		GameServer()->Score()->LoadPlayerData(ClientId);
 		GameServer()->Score()->ShowTop(ClientId);
 	}
 }
