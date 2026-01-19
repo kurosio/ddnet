@@ -101,8 +101,10 @@ class CGameControllerMod : public IGameController
 	bool LoadDanceMapData(const char *pMapName);
 	bool FindFieldAnchorFromMap(vec2 &OutPos) const;
 	void ScoreHit(int ClientId, int RatingDelta);
+	int ScorePoints(const SRhythmScore &Score) const;
 	void ResetClientState(int ClientId);
 	void TryStartHold(int ClientId, int LaneIndex, int PressTick, int HitWindowTicks, bool UseTickNotes);
+	void SaveRhythmResults();
 	float EffectiveFallSpeedPerBeat() const;
 	void ApplyRhythmTuning();
 	void RestoreRhythmTuning();

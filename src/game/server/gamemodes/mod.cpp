@@ -12,8 +12,10 @@
 
 #include <game/collision.h>
 #include <game/server/player.h>
+#include <game/server/score.h>
 #include <game/server/entities/character.h>
 #include <game/server/entities/rhythm_field.h>
+#include <game/server/scoreworker.h>
 #include <game/gamecore.h>
 #include <game/mapitems.h>
 
@@ -169,11 +171,14 @@ void CGameControllerMod::OnPlayerConnect(CPlayer *pPlayer)
 	int ClientId = pPlayer->GetCid();
 
 	// init the player
-	//Score()->PlayerData(ClientId)->Reset();
-
-	// Can't set score here as LoadScore() is threaded, run it in
-	// LoadScoreThreaded() instead
-	//Score()->LoadPlayerData(ClientId);
+	if(!IsLobbyMap())
+	{
+		GameServer()->Score()->PlayerData(ClientId)->Reset();
+		Server()->SetClientScore(ClientId, std::nullopt);
+		// Can't set score here as LoadScore() is threaded, run it in
+		// LoadScoreThreaded() instead
+		GameServer()->Score()->LoadPlayerData(ClientId);
+	}
 
 	if(!Server()->ClientPrevIngame(ClientId))
 	{
@@ -258,6 +263,8 @@ void CGameControllerMod::ChangeState(EStageState State)
 	m_State = State;
 
 	if(PrevState == EStageState::STATE_ACTIVE && State != EStageState::STATE_ACTIVE)
+		SaveRhythmResults();
+	if(PrevState == EStageState::STATE_ACTIVE && State != EStageState::STATE_ACTIVE)
 		RestoreRhythmTuning();
 
 	switch(m_State)
@@ -293,6 +300,7 @@ void CGameControllerMod::ChangeState(EStageState State)
 			GameServer()->SendChatTarget(-1, "The dance competition has begun.");
 			GameServer()->CreateSoundGlobal(SOUND_SELF_MUSIC);
 			ApplyRhythmTuning();
+			GameServer()->Score()->LoadBestScore();
 
 			m_CurrentNote = 0;
 			m_NextSpawnNote = 0;
@@ -340,6 +348,11 @@ void CGameControllerMod::ChangeState(EStageState State)
 			{
 				if(!pPlayer)
 					continue;
+				const int ClientId = pPlayer->GetCid();
+				GameServer()->Score()->PlayerData(ClientId)->Reset();
+				Server()->SetClientScore(ClientId, std::nullopt);
+				GameServer()->Score()->LoadPlayerData(ClientId);
+				GameServer()->Score()->ShowTop(ClientId);
 				if(m_FieldAnchorValid)
 					pPlayer->SetFixedView(m_FieldAnchorPos + vec2(SRhythmFieldConfig::s_FieldViewOffsetX, SRhythmFieldConfig::s_FieldViewOffsetY));
 				else
@@ -368,8 +381,7 @@ int CGameControllerMod::SnapPlayerScore(int SnappingClient, CPlayer *pPlayer)
 	if(!IsValidClientId(ClientId))
 		return 0;
 
-	const SRhythmScore &Score = m_aScores[ClientId];
-	return Score.m_Perfect * 3 + Score.m_Good * 2 + Score.m_Bad;
+	return ScorePoints(m_aScores[ClientId]);
 }
 
 bool CGameControllerMod::LoadDanceMapData(const char *pMapName)
@@ -750,6 +762,62 @@ void CGameControllerMod::ScoreHit(int ClientId, int RatingDelta)
 	{
 		m_aScores[ClientId].m_Miss++;
 		m_aScores[ClientId].m_LastGrade = ERhythmHitGrade::MISS;
+	}
+}
+
+int CGameControllerMod::ScorePoints(const SRhythmScore &Score) const
+{
+	return Score.m_Perfect * 3 + Score.m_Good * 2 + Score.m_Bad;
+}
+
+void CGameControllerMod::SaveRhythmResults()
+{
+	if(IsLobbyMap())
+		return;
+
+	char aTimestamp[TIMESTAMP_STR_LENGTH];
+	str_timestamp_format(aTimestamp, sizeof(aTimestamp), FORMAT_SPACE);
+	float aEmptyScoreCp[NUM_CHECKPOINTS] = {};
+
+	for(int i = 0; i < MAX_CLIENTS; ++i)
+	{
+		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
+		if(!pPlayer || pPlayer->GetTeam() == TEAM_SPECTATORS)
+			continue;
+
+		const SRhythmScore &Score = m_aScores[i];
+		const int Points = ScorePoints(Score);
+		const bool HasAnyResult = Score.m_Perfect || Score.m_Good || Score.m_Bad || Score.m_Miss;
+		if(!HasAnyResult)
+			continue;
+
+		auto *pData = GameServer()->Score()->PlayerData(i);
+		const std::optional<float> BestScore = pData->m_BestScore;
+		const bool NewPersonalBest = !BestScore.has_value() || Points > BestScore.value();
+		if(NewPersonalBest)
+		{
+			pData->Set(static_cast<float>(Points), aEmptyScoreCp);
+			Server()->SetClientScore(i, Points);
+			char aBuf[128];
+			str_format(aBuf, sizeof(aBuf), "New personal record: %d point%s!", Points, Points == 1 ? "" : "s");
+			GameServer()->SendChatTarget(i, aBuf);
+		}
+		else
+		{
+			char aBuf[128];
+			str_format(aBuf, sizeof(aBuf), "Your score: %d point%s.", Points, Points == 1 ? "" : "s");
+			GameServer()->SendChatTarget(i, aBuf);
+		}
+
+		if(!m_CurrentBestScore.has_value() || Points > m_CurrentBestScore.value())
+		{
+			m_CurrentBestScore = static_cast<float>(Points);
+			char aBuf[128];
+			str_format(aBuf, sizeof(aBuf), "New map record: %d point%s!", Points, Points == 1 ? "" : "s");
+			GameServer()->SendChat(-1, TEAM_ALL, aBuf);
+		}
+
+		GameServer()->Score()->SaveScore(i, Points, aTimestamp, aEmptyScoreCp, pPlayer->m_NotEligibleForFinish);
 	}
 }
 

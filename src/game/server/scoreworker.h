@@ -40,7 +40,6 @@ struct CScorePlayerResult : ISqlResult
 		BROADCAST,
 		MAP_VOTE,
 		PLAYER_INFO,
-		PLAYER_TIMECP,
 	} m_MessageKind;
 	union
 	{
@@ -296,7 +295,6 @@ struct CScoreWorker
 	static bool MapVote(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 
 	static bool LoadPlayerData(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
-	static bool LoadPlayerScoreCp(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool MapInfo(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool ShowRank(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool ShowTeamRank(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);

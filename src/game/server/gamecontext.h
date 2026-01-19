@@ -494,7 +494,6 @@ private:
 	static void ConTimes(IConsole::IResult *pResult, void *pUserData);
 	static void ConPoints(IConsole::IResult *pResult, void *pUserData);
 	static void ConTopPoints(IConsole::IResult *pResult, void *pUserData);
-	static void ConTimeCP(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConDND(IConsole::IResult *pResult, void *pUserData);
 	static void ConWhispers(IConsole::IResult *pResult, void *pUserData);

@@ -129,11 +129,6 @@ void CScore::LoadPlayerData(int ClientId, const char *pName)
 	ExecPlayerThread(CScoreWorker::LoadPlayerData, "load player data", ClientId, pName, 0);
 }
 
-void CScore::LoadPlayerScoreCp(int ClientId, const char *pName)
-{
-	ExecPlayerThread(CScoreWorker::LoadPlayerScoreCp, "load player scorecp", ClientId, pName, 0);
-}
-
 void CScore::MapVote(int ClientId, const char *pMapName)
 {
 	if(RateLimitPlayer(ClientId))
@@ -154,7 +149,11 @@ void CScore::SaveScore(int ClientId, int ScoreTicks, const char *pTimestamp, con
 	if(pCon->Cheated() || NotEligible)
 		return;
 
-	GameServer()->TeehistorianRecordPlayerFinish(ClientId, ScoreTicks);
+	const bool IsRhythmMode = str_comp(GameServer()->m_pController->m_pGameType, "Rhythm") == 0;
+	if(!IsRhythmMode)
+	{
+		GameServer()->TeehistorianRecordPlayerFinish(ClientId, ScoreTicks);
+	}
 
 	CPlayer *pCurPlayer = GameServer()->m_apPlayers[ClientId];
 	if(pCurPlayer->m_ScoreFinishResult != nullptr)
@@ -165,7 +164,7 @@ void CScore::SaveScore(int ClientId, int ScoreTicks, const char *pTimestamp, con
 	FormatUuid(GameServer()->GameUuid(), Tmp->m_aGameUuid, sizeof(Tmp->m_aGameUuid));
 	Tmp->m_ClientId = ClientId;
 	str_copy(Tmp->m_aName, Server()->ClientName(ClientId), sizeof(Tmp->m_aName));
-	Tmp->m_Score = (float)(ScoreTicks) / (float)Server()->TickSpeed();
+	Tmp->m_Score = IsRhythmMode ? static_cast<float>(ScoreTicks) : (float)(ScoreTicks) / (float)Server()->TickSpeed();
 	str_copy(Tmp->m_aTimestamp, pTimestamp, sizeof(Tmp->m_aTimestamp));
 	for(int i = 0; i < NUM_CHECKPOINTS; i++)
 		Tmp->m_aCurrentScoreCp[i] = aScoreCp[i];

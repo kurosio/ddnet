@@ -1007,16 +1007,10 @@ void CPlayer::ProcessScoreResult(CScorePlayerResult &Result)
 
 				GameServer()->CreateBirthdayEffect(GetCharacter()->m_Pos, GetCharacter()->TeamMask());
 			}
-			GameServer()->SendRecord(m_ClientId);
+			if(str_comp(GameServer()->m_pController->m_pGameType, "Rhythm") != 0)
+				GameServer()->SendRecord(m_ClientId);
 			break;
 		}
-		case CScorePlayerResult::PLAYER_TIMECP:
-			GameServer()->Score()->PlayerData(m_ClientId)->SetBestScoreCp(Result.m_Data.m_Info.m_aScoreCp);
-			char aBuf[128];
-			int Points = static_cast<int>(Result.m_Data.m_Info.m_Score.value());
-			str_format(aBuf, sizeof(aBuf), "Showing the checkpoint scores for '%s' with a rhythm score of %d point%s", Result.m_Data.m_Info.m_aRequestedPlayer, Points, Points == 1 ? "" : "s");
-			GameServer()->SendChatTarget(m_ClientId, aBuf);
-			break;
 		}
 	}
 }

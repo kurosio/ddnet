@@ -45,12 +45,6 @@ void CScorePlayerResult::SetVariant(Variant v)
 		for(float &ScoreCp : m_Data.m_Info.m_aScoreCp)
 			ScoreCp = 0;
 		break;
-	case PLAYER_TIMECP:
-		m_Data.m_Info.m_aRequestedPlayer[0] = '\0';
-		m_Data.m_Info.m_Score.reset();
-		for(float &ScoreCp : m_Data.m_Info.m_aScoreCp)
-			ScoreCp = 0;
-		break;
 	}
 }
 
@@ -180,14 +174,10 @@ bool CScoreWorker::LoadPlayerData(IDbConnection *pSqlServer, const ISqlData *pGa
 	// get best rhythm score
 	str_format(aBuf, sizeof(aBuf),
 		"SELECT"
-		"  (SELECT Points FROM %s_rhythm WHERE Map = ? AND Name = ? ORDER BY Points DESC LIMIT 1) AS maxPoints, "
-		"  cp1, cp2, cp3, cp4, cp5, cp6, cp7, cp8, cp9, cp10, cp11, cp12, cp13, cp14, "
-		"  cp15, cp16, cp17, cp18, cp19, cp20, cp21, cp22, cp23, cp24, cp25, "
-		"  (cp1 + cp2 + cp3 + cp4 + cp5 + cp6 + cp7 + cp8 + cp9 + cp10 + cp11 + cp12 + cp13 + cp14 + "
-		"  cp15 + cp16 + cp17 + cp18 + cp19 + cp20 + cp21 + cp22 + cp23 + cp24 + cp25 > 0) AS hasCP, Points "
+		"  (SELECT Points FROM %s_rhythm WHERE Map = ? AND Name = ? ORDER BY Points DESC LIMIT 1) AS maxPoints "
 		"FROM %s_rhythm "
 		"WHERE Map = ? AND Name = ? "
-		"ORDER BY hasCP DESC, Points DESC "
+		"ORDER BY Points DESC "
 		"LIMIT 1",
 		pSqlServer->GetPrefix(), pSqlServer->GetPrefix());
 	if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
@@ -213,11 +203,6 @@ bool CScoreWorker::LoadPlayerData(IDbConnection *pSqlServer, const ISqlData *pGa
 			// get the best score
 			float Points = pSqlServer->GetFloat(1);
 			pResult->m_Data.m_Info.m_Score = Points;
-		}
-
-		for(int i = 0; i < NUM_CHECKPOINTS; i++)
-		{
-			pResult->m_Data.m_Info.m_aScoreCp[i] = pSqlServer->GetFloat(i + 2);
 		}
 	}
 
@@ -247,56 +232,6 @@ bool CScoreWorker::LoadPlayerData(IDbConnection *pSqlServer, const ISqlData *pGa
 		int StampYear, StampMonth, StampDay;
 		if(sscanf(aCurrent, "%d-%d-%d", &CurrentYear, &CurrentMonth, &CurrentDay) == 3 && sscanf(aStamp, "%d-%d-%d", &StampYear, &StampMonth, &StampDay) == 3 && CurrentMonth == StampMonth && CurrentDay == StampDay)
 			pResult->m_Data.m_Info.m_Birthday = CurrentYear - StampYear;
-	}
-	return true;
-}
-
-bool CScoreWorker::LoadPlayerScoreCp(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
-{
-	const auto *pData = dynamic_cast<const CSqlPlayerRequest *>(pGameData);
-	auto *pResult = dynamic_cast<CScorePlayerResult *>(pGameData->m_pResult.get());
-	auto *paMessages = pResult->m_Data.m_aaMessages;
-
-	char aBuf[1024];
-	str_format(aBuf, sizeof(aBuf),
-		"SELECT"
-		"  Points, cp1, cp2, cp3, cp4, cp5, cp6, cp7, cp8, cp9, cp10, cp11, cp12, cp13, "
-		"  cp14, cp15, cp16, cp17, cp18, cp19, cp20, cp21, cp22, cp23, cp24, cp25 "
-		"FROM %s_rhythm "
-		"WHERE Map = ? AND Name = ? AND "
-		"  (cp1 + cp2 + cp3 + cp4 + cp5 + cp6 + cp7 + cp8 + cp9 + cp10 + cp11 + cp12 + cp13 + cp14 + "
-		"  cp15 + cp16 + cp17 + cp18 + cp19 + cp20 + cp21 + cp22 + cp23 + cp24 + cp25) > 0 "
-		"ORDER BY Points DESC "
-		"LIMIT 1",
-		pSqlServer->GetPrefix());
-	if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
-	{
-		return false;
-	}
-
-	const char *pPlayer = pData->m_aName[0] != '\0' ? pData->m_aName : pData->m_aRequestingPlayer;
-	pSqlServer->BindString(1, pData->m_aMap);
-	pSqlServer->BindString(2, pPlayer);
-
-	bool End;
-	if(!pSqlServer->Step(&End, pError, ErrorSize))
-	{
-		return false;
-	}
-	if(!End)
-	{
-		pResult->SetVariant(CScorePlayerResult::PLAYER_TIMECP);
-		pResult->m_Data.m_Info.m_Score = static_cast<float>(pSqlServer->GetInt(1));
-		for(int i = 0; i < NUM_CHECKPOINTS; i++)
-		{
-			pResult->m_Data.m_Info.m_aScoreCp[i] = pSqlServer->GetFloat(i + 2);
-		}
-		str_copy(pResult->m_Data.m_Info.m_aRequestedPlayer, pPlayer, sizeof(pResult->m_Data.m_Info.m_aRequestedPlayer));
-	}
-	else
-	{
-		pResult->SetVariant(CScorePlayerResult::DIRECT);
-		str_format(paMessages[0], sizeof(paMessages[0]), "'%s' has no checkpoint scores available", pPlayer);
 	}
 	return true;
 }
@@ -490,8 +425,6 @@ bool CScoreWorker::MapInfo(IDbConnection *pSqlServer, const ISqlData *pGameData,
 bool CScoreWorker::SaveScore(IDbConnection *pSqlServer, const ISqlData *pGameData, Write w, char *pError, int ErrorSize)
 {
 	const auto *pData = dynamic_cast<const CSqlScoreData *>(pGameData);
-	auto *pResult = dynamic_cast<CScorePlayerResult *>(pGameData->m_pResult.get());
-	auto *paMessages = pResult->m_Data.m_aaMessages;
 
 	char aBuf[1024];
 
@@ -562,76 +495,16 @@ bool CScoreWorker::SaveScore(IDbConnection *pSqlServer, const ISqlData *pGameDat
 		return true;
 	}
 
-	if(w == Write::NORMAL)
-	{
-		str_format(aBuf, sizeof(aBuf),
-			"SELECT COUNT(*) AS NumFinished FROM %s_rhythm WHERE Map=? AND Name=? ORDER BY Points DESC LIMIT 1",
-			pSqlServer->GetPrefix());
-		if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
-		{
-			return false;
-		}
-		pSqlServer->BindString(1, pData->m_aMap);
-		pSqlServer->BindString(2, pData->m_aName);
-
-		bool End;
-		if(!pSqlServer->Step(&End, pError, ErrorSize))
-		{
-			return false;
-		}
-		int NumFinished = pSqlServer->GetInt(1);
-		if(NumFinished == 0)
-		{
-			str_format(aBuf, sizeof(aBuf), "SELECT Points FROM %s_maps WHERE Map=?", pSqlServer->GetPrefix());
-			if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
-			{
-				return false;
-			}
-			pSqlServer->BindString(1, pData->m_aMap);
-
-			bool End2;
-			if(!pSqlServer->Step(&End2, pError, ErrorSize))
-			{
-				return false;
-			}
-			if(!End2)
-			{
-				int Points = pSqlServer->GetInt(1);
-				if(!pSqlServer->AddPoints(pData->m_aName, Points, pError, ErrorSize))
-				{
-					return false;
-				}
-				str_format(paMessages[0], sizeof(paMessages[0]),
-					"You earned %d point%s for finishing this map!",
-					Points, Points == 1 ? "" : "s");
-			}
-		}
-	}
-
 	// save score. Can't fail, because no UNIQUE/PRIMARY KEY constrain is defined.
 	str_format(aBuf, sizeof(aBuf),
 		"%s INTO %s_rhythm%s("
 		"	Map, Name, Timestamp, Points, Server, "
-		"	cp1, cp2, cp3, cp4, cp5, cp6, cp7, cp8, cp9, cp10, cp11, cp12, cp13, "
-		"	cp14, cp15, cp16, cp17, cp18, cp19, cp20, cp21, cp22, cp23, cp24, cp25, "
 		"	GameId, DDNet7) "
-		"VALUES (?, ?, %s, %.2f, ?, "
-		"	%.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, "
-		"	%.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, "
-		"	%.2f, %.2f, %.2f, %.2f, %.2f, %.2f, %.2f, "
+		"VALUES (?, ?, %s, %.0f, ?, "
 		"	?, %s)",
 		pSqlServer->InsertIgnore(), pSqlServer->GetPrefix(),
 		w == Write::NORMAL ? "" : "_backup",
-		pSqlServer->InsertTimestampAsUtc(), pData->m_Score,
-		pData->m_aCurrentScoreCp[0], pData->m_aCurrentScoreCp[1], pData->m_aCurrentScoreCp[2],
-		pData->m_aCurrentScoreCp[3], pData->m_aCurrentScoreCp[4], pData->m_aCurrentScoreCp[5],
-		pData->m_aCurrentScoreCp[6], pData->m_aCurrentScoreCp[7], pData->m_aCurrentScoreCp[8],
-		pData->m_aCurrentScoreCp[9], pData->m_aCurrentScoreCp[10], pData->m_aCurrentScoreCp[11],
-		pData->m_aCurrentScoreCp[12], pData->m_aCurrentScoreCp[13], pData->m_aCurrentScoreCp[14],
-		pData->m_aCurrentScoreCp[15], pData->m_aCurrentScoreCp[16], pData->m_aCurrentScoreCp[17],
-		pData->m_aCurrentScoreCp[18], pData->m_aCurrentScoreCp[19], pData->m_aCurrentScoreCp[20],
-		pData->m_aCurrentScoreCp[21], pData->m_aCurrentScoreCp[22], pData->m_aCurrentScoreCp[23],
-		pData->m_aCurrentScoreCp[24], pSqlServer->False());
+		pSqlServer->InsertTimestampAsUtc(), pData->m_Score, pSqlServer->False());
 	if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		return false;
@@ -829,12 +702,15 @@ bool CScoreWorker::ShowRank(IDbConnection *pSqlServer, const ISqlData *pGameData
 	str_format(aBuf, sizeof(aBuf),
 		"SELECT Ranking, Points, PercentRank "
 		"FROM ("
-		"  SELECT RANK() OVER w AS Ranking, PERCENT_RANK() OVER w as PercentRank, MAX(Points) AS Points, Name "
-		"  FROM %s_rhythm "
-		"  WHERE Map = ? "
-		"  AND Server LIKE ? "
+		"  SELECT RANK() OVER w AS Ranking, PERCENT_RANK() OVER w as PercentRank, SUM(MaxPoints) AS Points, Name "
+		"  FROM ("
+		"    SELECT Name, Map, MAX(Points) AS MaxPoints "
+		"    FROM %s_rhythm "
+		"    WHERE Server LIKE ? "
+		"    GROUP BY Name, Map"
+		"  ) as best "
 		"  GROUP BY Name "
-		"  WINDOW w AS (ORDER BY MAX(Points) DESC)"
+		"  WINDOW w AS (ORDER BY SUM(MaxPoints) DESC)"
 		") as a "
 		"WHERE Name = ?",
 		pSqlServer->GetPrefix());
@@ -843,9 +719,8 @@ bool CScoreWorker::ShowRank(IDbConnection *pSqlServer, const ISqlData *pGameData
 	{
 		return false;
 	}
-	pSqlServer->BindString(1, pData->m_aMap);
-	pSqlServer->BindString(2, aServerLike);
-	pSqlServer->BindString(3, pData->m_aName);
+	pSqlServer->BindString(1, aServerLike);
+	pSqlServer->BindString(2, pData->m_aName);
 
 	bool End;
 	if(!pSqlServer->Step(&End, pError, ErrorSize))
@@ -869,9 +744,8 @@ bool CScoreWorker::ShowRank(IDbConnection *pSqlServer, const ISqlData *pGameData
 	{
 		return false;
 	}
-	pSqlServer->BindString(1, pData->m_aMap);
-	pSqlServer->BindString(2, pAny);
-	pSqlServer->BindString(3, pData->m_aName);
+	pSqlServer->BindString(1, pAny);
+	pSqlServer->BindString(2, pData->m_aName);
 
 	if(!pSqlServer->Step(&End, pError, ErrorSize))
 	{
@@ -1410,18 +1284,23 @@ bool CScoreWorker::ShowPoints(IDbConnection *pSqlServer, const ISqlData *pGameDa
 
 	char aBuf[512];
 	str_format(aBuf, sizeof(aBuf),
-		"SELECT ("
-		"  SELECT COUNT(Name) + 1 FROM %s_points WHERE Points > ("
-		"    SELECT Points FROM %s_points WHERE Name = ?"
-		")) as Ranking, Points, Name "
-		"FROM %s_points WHERE Name = ?",
-		pSqlServer->GetPrefix(), pSqlServer->GetPrefix(), pSqlServer->GetPrefix());
+		"SELECT Ranking, Points, Name "
+		"FROM ("
+		"  SELECT RANK() OVER (ORDER BY SUM(MaxPoints) DESC) AS Ranking, SUM(MaxPoints) AS Points, Name "
+		"  FROM ("
+		"    SELECT Name, Map, MAX(Points) AS MaxPoints "
+		"    FROM %s_rhythm "
+		"    GROUP BY Name, Map"
+		"  ) as best "
+		"  GROUP BY Name"
+		") as ranked "
+		"WHERE Name = ?",
+		pSqlServer->GetPrefix());
 	if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		return false;
 	}
 	pSqlServer->BindString(1, pData->m_aName);
-	pSqlServer->BindString(2, pData->m_aName);
 
 	bool End;
 	if(!pSqlServer->Step(&End, pError, ErrorSize))
@@ -1436,13 +1315,13 @@ bool CScoreWorker::ShowPoints(IDbConnection *pSqlServer, const ISqlData *pGameDa
 		pSqlServer->GetString(3, aName, sizeof(aName));
 		pResult->m_MessageKind = CScorePlayerResult::ALL;
 		str_format(paMessages[0], sizeof(paMessages[0]),
-			"%d. %s Points: %d, requested by %s",
+			"%d. %s Score: %d points, requested by %s",
 			Rank, aName, Count, pData->m_aRequestingPlayer);
 	}
 	else
 	{
 		str_format(paMessages[0], sizeof(paMessages[0]),
-			"%s has not collected any points so far", pData->m_aName);
+			"%s has no rhythm score yet", pData->m_aName);
 	}
 	return true;
 }
@@ -1457,23 +1336,26 @@ bool CScoreWorker::ShowTopPoints(IDbConnection *pSqlServer, const ISqlData *pGam
 
 	char aBuf[512];
 	str_format(aBuf, sizeof(aBuf),
-		"SELECT RANK() OVER (ORDER BY a.Points DESC) as Ranking, Points, Name "
+		"SELECT Ranking, Points, Name "
 		"FROM ("
-		"  SELECT Points, Name "
-		"  FROM %s_points "
-		"  ORDER BY Points DESC LIMIT ?"
-		") as a "
+		"  SELECT RANK() OVER (ORDER BY SUM(MaxPoints) DESC) AS Ranking, SUM(MaxPoints) AS Points, Name "
+		"  FROM ("
+		"    SELECT Name, Map, MAX(Points) AS MaxPoints "
+		"    FROM %s_rhythm "
+		"    GROUP BY Name, Map"
+		"  ) as best "
+		"  GROUP BY Name"
+		") as ranked "
 		"ORDER BY Ranking ASC, Name ASC LIMIT ?, 5",
 		pSqlServer->GetPrefix());
 	if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
 		return false;
 	}
-	pSqlServer->BindInt(1, LimitStart + 5);
-	pSqlServer->BindInt(2, LimitStart);
+	pSqlServer->BindInt(1, LimitStart);
 
 	// show top points
-	str_copy(paMessages[0], "-------- Top Points --------", sizeof(paMessages[0]));
+	str_copy(paMessages[0], "-------- Global Rhythm Rating --------", sizeof(paMessages[0]));
 
 	bool End = false;
 	int Line = 1;
@@ -1484,14 +1366,14 @@ bool CScoreWorker::ShowTopPoints(IDbConnection *pSqlServer, const ISqlData *pGam
 		char aName[MAX_NAME_LENGTH];
 		pSqlServer->GetString(3, aName, sizeof(aName));
 		str_format(paMessages[Line], sizeof(paMessages[Line]),
-			"%d. %s Points: %d", Rank, aName, Points);
+			"%d. %s Score: %d points", Rank, aName, Points);
 		Line++;
 	}
 	if(!End)
 	{
 		return false;
 	}
-	str_copy(paMessages[Line], "-------------------------------", sizeof(paMessages[Line]));
+	str_copy(paMessages[Line], "----------------------------------------", sizeof(paMessages[Line]));
 
 	return true;
 }
