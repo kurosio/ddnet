@@ -649,7 +649,7 @@ public:
 	bool IsRunningKickOrSpecVote(int ClientId) const;
 
 	void SendRecord(int ClientId);
-	void SendFinish(int ClientId, float Time, std::optional<float> PreviousBestTime);
+	void SendFinish(int ClientId, float Score, std::optional<float> PreviousBestScore);
 	void SendSaveCode(int Team, int TeamSize, int State, const char *pError, const char *pSaveRequester, const char *pServerName, const char *pGeneratedCode, const char *pCode);
 	void OnSetAuthed(int ClientId, int Level) override;
 

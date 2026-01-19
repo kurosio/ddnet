@@ -985,10 +985,10 @@ void CPlayer::ProcessScoreResult(CScorePlayerResult &Result)
 			break;
 		case CScorePlayerResult::PLAYER_INFO:
 		{
-			if(Result.m_Data.m_Info.m_Time.has_value())
+			if(Result.m_Data.m_Info.m_Score.has_value())
 			{
-				GameServer()->Score()->PlayerData(m_ClientId)->Set(Result.m_Data.m_Info.m_Time.value(), Result.m_Data.m_Info.m_aTimeCp);
-				Server()->SetClientScore(m_ClientId, Result.m_Data.m_Info.m_Time.value());
+				GameServer()->Score()->PlayerData(m_ClientId)->Set(Result.m_Data.m_Info.m_Score.value(), Result.m_Data.m_Info.m_aScoreCp);
+				Server()->SetClientScore(m_ClientId, Result.m_Data.m_Info.m_Score.value());
 			}
 			Server()->ExpireServerInfo();
 			int Birthday = Result.m_Data.m_Info.m_Birthday;
@@ -1011,10 +1011,10 @@ void CPlayer::ProcessScoreResult(CScorePlayerResult &Result)
 			break;
 		}
 		case CScorePlayerResult::PLAYER_TIMECP:
-			GameServer()->Score()->PlayerData(m_ClientId)->SetBestTimeCp(Result.m_Data.m_Info.m_aTimeCp);
+			GameServer()->Score()->PlayerData(m_ClientId)->SetBestScoreCp(Result.m_Data.m_Info.m_aScoreCp);
 			char aBuf[128], aTime[32];
-			str_time_float(Result.m_Data.m_Info.m_Time.value(), TIME_HOURS_CENTISECS, aTime, sizeof(aTime));
-			str_format(aBuf, sizeof(aBuf), "Showing the checkpoint times for '%s' with a race time of %s", Result.m_Data.m_Info.m_aRequestedPlayer, aTime);
+			str_time_float(Result.m_Data.m_Info.m_Score.value(), TIME_HOURS_CENTISECS, aTime, sizeof(aTime));
+			str_format(aBuf, sizeof(aBuf), "Showing the checkpoint scores for '%s' with a rhythm score of %s", Result.m_Data.m_Info.m_aRequestedPlayer, aTime);
 			GameServer()->SendChatTarget(m_ClientId, aBuf);
 			break;
 		}

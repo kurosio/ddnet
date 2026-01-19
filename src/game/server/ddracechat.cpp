@@ -1110,7 +1110,7 @@ void CGameContext::ConLock(IConsole::IResult *pResult, void *pUserData)
 		if(pSelf->m_pController->Teams().TeamFlock(Team))
 			str_format(aBuf, sizeof(aBuf), "'%s' locked your team.", pSelf->Server()->ClientName(pResult->m_ClientId));
 		else
-			str_format(aBuf, sizeof(aBuf), "'%s' locked your team. After the race starts, killing will kill everyone in your team.", pSelf->Server()->ClientName(pResult->m_ClientId));
+			str_format(aBuf, sizeof(aBuf), "'%s' locked your team. After the rhythm starts, killing will kill everyone in your team.", pSelf->Server()->ClientName(pResult->m_ClientId));
 		pSelf->SendChatTeam(Team, aBuf);
 	}
 }
@@ -1681,7 +1681,7 @@ void CGameContext::ConSayTime(IConsole::IResult *pResult, void *pUserData)
 	char aBuf[64];
 	int64_t Time = (int64_t)100 * (float)(pSelf->Server()->Tick() - pChr->m_StartTime) / ((float)pSelf->Server()->TickSpeed());
 	str_time(Time, TIME_HOURS, aBufTime, sizeof(aBufTime));
-	str_format(aBuf, sizeof(aBuf), "%s current race time is %s", aBufName, aBufTime);
+	str_format(aBuf, sizeof(aBuf), "%s current rhythm score is %s", aBufName, aBufTime);
 	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp", aBuf);
 }
 
@@ -1705,7 +1705,7 @@ void CGameContext::ConSayTimeAll(IConsole::IResult *pResult, void *pUserData)
 	int64_t Time = (int64_t)100 * (float)(pSelf->Server()->Tick() - pChr->m_StartTime) / ((float)pSelf->Server()->TickSpeed());
 	const char *pName = pSelf->Server()->ClientName(pResult->m_ClientId);
 	str_time(Time, TIME_HOURS, aBufTime, sizeof(aBufTime));
-	str_format(aBuf, sizeof(aBuf), "%s's current race time is %s", pName, aBufTime);
+	str_format(aBuf, sizeof(aBuf), "%s's current rhythm score is %s", pName, aBufTime);
 	pSelf->SendChat(-1, TEAM_ALL, aBuf, pResult->m_ClientId);
 }
 
@@ -1726,11 +1726,11 @@ void CGameContext::ConTime(IConsole::IResult *pResult, void *pUserData)
 	char aBuf[64];
 	int64_t Time = (int64_t)100 * (float)(pSelf->Server()->Tick() - pChr->m_StartTime) / ((float)pSelf->Server()->TickSpeed());
 	str_time(Time, TIME_HOURS, aBufTime, sizeof(aBufTime));
-	str_format(aBuf, sizeof(aBuf), "Your time is %s", aBufTime);
+	str_format(aBuf, sizeof(aBuf), "Your score is %s", aBufTime);
 	pSelf->SendBroadcast(aBuf, pResult->m_ClientId);
 }
 
-static const char s_aaMsg[4][128] = {"game/round timer.", "broadcast.", "both game/round timer and broadcast.", "racetime."};
+static const char s_aaMsg[4][128] = {"game/round timer.", "broadcast.", "both game/round timer and broadcast.", "rhythmscore."};
 
 void CGameContext::ConSetTimerType(IConsole::IResult *pResult, void *pUserData)
 {
@@ -2539,5 +2539,5 @@ void CGameContext::ConTimeCP(IConsole::IResult *pResult, void *pUserData)
 		return;
 
 	const char *pName = pResult->GetString(0);
-	pSelf->Score()->LoadPlayerTimeCp(pResult->m_ClientId, pName);
+	pSelf->Score()->LoadPlayerScoreCp(pResult->m_ClientId, pName);
 }

@@ -80,7 +80,7 @@ CScore::CScore(CGameContext *pGameServer, CDbConnectionPool *pPool) :
 	m_pGameServer(pGameServer),
 	m_pServer(pGameServer->Server())
 {
-	LoadBestTime();
+	LoadBestScore();
 
 	uint64_t aSeed[2];
 	secure_random_fill(aSeed, sizeof(aSeed));
@@ -111,17 +111,17 @@ CScore::CScore(CGameContext *pGameServer, CDbConnectionPool *pPool) :
 	}
 }
 
-void CScore::LoadBestTime()
+void CScore::LoadBestScore()
 {
-	if(m_pGameServer->m_pController->m_pLoadBestTimeResult)
+	if(m_pGameServer->m_pController->m_pLoadBestScoreResult)
 		return; // already in progress
 
-	auto LoadBestTimeResult = std::make_shared<CScoreLoadBestTimeResult>();
-	m_pGameServer->m_pController->m_pLoadBestTimeResult = LoadBestTimeResult;
+	auto LoadBestScoreResult = std::make_shared<CScoreLoadBestScoreResult>();
+	m_pGameServer->m_pController->m_pLoadBestScoreResult = LoadBestScoreResult;
 
-	auto Tmp = std::make_unique<CSqlLoadBestTimeRequest>(LoadBestTimeResult);
+	auto Tmp = std::make_unique<CSqlLoadBestScoreRequest>(LoadBestScoreResult);
 	str_copy(Tmp->m_aMap, Server()->GetMapName(), sizeof(Tmp->m_aMap));
-	m_pPool->Execute(CScoreWorker::LoadBestTime, std::move(Tmp), "load best time");
+	m_pPool->Execute(CScoreWorker::LoadBestScore, std::move(Tmp), "load best score");
 }
 
 void CScore::LoadPlayerData(int ClientId, const char *pName)
@@ -129,9 +129,9 @@ void CScore::LoadPlayerData(int ClientId, const char *pName)
 	ExecPlayerThread(CScoreWorker::LoadPlayerData, "load player data", ClientId, pName, 0);
 }
 
-void CScore::LoadPlayerTimeCp(int ClientId, const char *pName)
+void CScore::LoadPlayerScoreCp(int ClientId, const char *pName)
 {
-	ExecPlayerThread(CScoreWorker::LoadPlayerTimeCp, "load player timecp", ClientId, pName, 0);
+	ExecPlayerThread(CScoreWorker::LoadPlayerScoreCp, "load player scorecp", ClientId, pName, 0);
 }
 
 void CScore::MapVote(int ClientId, const char *pMapName)
@@ -148,13 +148,13 @@ void CScore::MapInfo(int ClientId, const char *pMapName)
 	ExecPlayerThread(CScoreWorker::MapInfo, "map info", ClientId, pMapName, 0);
 }
 
-void CScore::SaveScore(int ClientId, int TimeTicks, const char *pTimestamp, const float aTimeCp[NUM_CHECKPOINTS], bool NotEligible)
+void CScore::SaveScore(int ClientId, int ScoreTicks, const char *pTimestamp, const float aScoreCp[NUM_CHECKPOINTS], bool NotEligible)
 {
 	CConsole *pCon = (CConsole *)GameServer()->Console();
 	if(pCon->Cheated() || NotEligible)
 		return;
 
-	GameServer()->TeehistorianRecordPlayerFinish(ClientId, TimeTicks);
+	GameServer()->TeehistorianRecordPlayerFinish(ClientId, ScoreTicks);
 
 	CPlayer *pCurPlayer = GameServer()->m_apPlayers[ClientId];
 	if(pCurPlayer->m_ScoreFinishResult != nullptr)
@@ -165,15 +165,15 @@ void CScore::SaveScore(int ClientId, int TimeTicks, const char *pTimestamp, cons
 	FormatUuid(GameServer()->GameUuid(), Tmp->m_aGameUuid, sizeof(Tmp->m_aGameUuid));
 	Tmp->m_ClientId = ClientId;
 	str_copy(Tmp->m_aName, Server()->ClientName(ClientId), sizeof(Tmp->m_aName));
-	Tmp->m_Time = (float)(TimeTicks) / (float)Server()->TickSpeed();
+	Tmp->m_Score = (float)(ScoreTicks) / (float)Server()->TickSpeed();
 	str_copy(Tmp->m_aTimestamp, pTimestamp, sizeof(Tmp->m_aTimestamp));
 	for(int i = 0; i < NUM_CHECKPOINTS; i++)
-		Tmp->m_aCurrentTimeCp[i] = aTimeCp[i];
+		Tmp->m_aCurrentScoreCp[i] = aScoreCp[i];
 
 	m_pPool->ExecuteWrite(CScoreWorker::SaveScore, std::move(Tmp), "save score");
 }
 
-void CScore::SaveTeamScore(int Team, int *pClientIds, unsigned int Size, int TimeTicks, const char *pTimestamp)
+void CScore::SaveTeamScore(int Team, int *pClientIds, unsigned int Size, int ScoreTicks, const char *pTimestamp)
 {
 	CConsole *pCon = (CConsole *)GameServer()->Console();
 	if(pCon->Cheated())
@@ -184,13 +184,13 @@ void CScore::SaveTeamScore(int Team, int *pClientIds, unsigned int Size, int Tim
 			return;
 	}
 
-	GameServer()->TeehistorianRecordTeamFinish(Team, TimeTicks);
+	GameServer()->TeehistorianRecordTeamFinish(Team, ScoreTicks);
 
 	auto Tmp = std::make_unique<CSqlTeamScoreData>();
 	for(unsigned int i = 0; i < Size; i++)
 		str_copy(Tmp->m_aaNames[i], Server()->ClientName(pClientIds[i]), sizeof(Tmp->m_aaNames[i]));
 	Tmp->m_Size = Size;
-	Tmp->m_Time = (float)TimeTicks / (float)Server()->TickSpeed();
+	Tmp->m_Score = (float)ScoreTicks / (float)Server()->TickSpeed();
 	str_copy(Tmp->m_aTimestamp, pTimestamp, sizeof(Tmp->m_aTimestamp));
 	FormatUuid(GameServer()->GameUuid(), Tmp->m_aGameUuid, sizeof(Tmp->m_aGameUuid));
 	str_copy(Tmp->m_aMap, Server()->GetMapName(), sizeof(Tmp->m_aMap));

@@ -765,9 +765,9 @@ void CGameTeams::OnFinish(CPlayer *pPlayer, int TimeTicks, const char *pTimestam
 	else
 		GameServer()->SendChat(-1, TEAM_ALL, aBuf, -1., CGameContext::FLAG_SIX);
 
-	float Diff = absolute(Time - pData->m_BestTime.value_or(0.0f));
+	float Diff = absolute(Time - pData->m_BestScore.value_or(0.0f));
 
-	if(Time - pData->m_BestTime.value_or(0.0f) < 0)
+	if(Time - pData->m_BestScore.value_or(0.0f) < 0)
 	{
 		// new record \o/
 		pData->m_RecordStopTick = Server()->Tick() + Server()->TickSpeed();
@@ -784,23 +784,23 @@ void CGameTeams::OnFinish(CPlayer *pPlayer, int TimeTicks, const char *pTimestam
 		else
 			GameServer()->SendChat(-1, TEAM_ALL, aBuf, -1, CGameContext::FLAG_SIX);
 	}
-	else if(pData->m_BestTime.has_value()) // tee has already finished?
+	else if(pData->m_BestScore.has_value()) // tee has already finished?
 	{
 		Server()->StopRecord(ClientId);
 
 		if(Diff <= 0.005f)
 		{
 			GameServer()->SendChatTarget(ClientId,
-				"You finished with your best time.");
+				"You finished with your best score.");
 		}
 		else
 		{
 			if(Diff >= 60)
-				str_format(aBuf, sizeof(aBuf), "%d minute(s) %5.2f second(s) worse, better luck next time.",
+				str_format(aBuf, sizeof(aBuf), "%d minute(s) %5.2f second(s) worse, better luck next score.",
 					(int)Diff / 60, Diff - ((int)Diff / 60 * 60));
 			else
 				str_format(aBuf, sizeof(aBuf),
-					"%5.2f second(s) worse, better luck next time.",
+					"%5.2f second(s) worse, better luck next score.",
 					Diff);
 			GameServer()->SendChatTarget(ClientId, aBuf, CGameContext::FLAG_SIX); // this is private, sent only to the tee
 		}
@@ -811,10 +811,10 @@ void CGameTeams::OnFinish(CPlayer *pPlayer, int TimeTicks, const char *pTimestam
 		pData->m_RecordFinishTime = Time;
 	}
 
-	GameServer()->SendFinish(ClientId, Time, pData->m_BestTime);
+	GameServer()->SendFinish(ClientId, Time, pData->m_BestScore);
 	bool CallSaveScore = g_Config.m_SvSaveWorseScores;
 	bool NeedToSendNewPersonalRecord = false;
-	if(!pData->m_BestTime || Time < pData->m_BestTime)
+	if(!pData->m_BestScore || Time < pData->m_BestScore)
 	{
 		// update the score
 		pData->Set(Time, GetCurrentTimeCp(pPlayer));
@@ -828,17 +828,17 @@ void CGameTeams::OnFinish(CPlayer *pPlayer, int TimeTicks, const char *pTimestam
 				GetCurrentTimeCp(pPlayer), pPlayer->m_NotEligibleForFinish);
 
 	bool NeedToSendNewServerRecord = false;
-	// update server best time
-	if(GameServer()->m_pController->m_CurrentRecord == 0)
+	// update server best score
+	if(GameServer()->m_pController->m_CurrentBestScore == 0)
 	{
-		GameServer()->Score()->LoadBestTime();
+		GameServer()->Score()->LoadBestScore();
 	}
-	else if(Time < GameServer()->m_pController->m_CurrentRecord)
+	else if(Time < GameServer()->m_pController->m_CurrentBestScore)
 	{
 		// check for nameless
 		if(g_Config.m_SvNamelessScore || !str_startswith(Server()->ClientName(ClientId), "nameless tee"))
 		{
-			GameServer()->m_pController->m_CurrentRecord = Time;
+			GameServer()->m_pController->m_CurrentBestScore = Time;
 			NeedToSendNewServerRecord = true;
 		}
 	}
@@ -860,7 +860,7 @@ void CGameTeams::OnFinish(CPlayer *pPlayer, int TimeTicks, const char *pTimestam
 	}
 
 	int TTime = (int)Time;
-	std::optional<float> Score = GameServer()->Score()->PlayerData(ClientId)->m_BestTime;
+	std::optional<float> Score = GameServer()->Score()->PlayerData(ClientId)->m_BestScore;
 	if(!Score.has_value() || TTime < Score.value())
 	{
 		Server()->SetClientScore(ClientId, TTime);

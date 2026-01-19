@@ -22,7 +22,7 @@
 #include <game/teamscore.h>
 
 IGameController::IGameController(class CGameContext *pGameServer) :
-	m_Teams(pGameServer), m_pLoadBestTimeResult(nullptr)
+	m_Teams(pGameServer), m_pLoadBestScoreResult(nullptr)
 {
 	m_pGameServer = pGameServer;
 	m_pConfig = m_pGameServer->Config();
@@ -38,7 +38,7 @@ IGameController::IGameController(class CGameContext *pGameServer) :
 	m_GameFlags = 0;
 	m_aMapWish[0] = 0;
 
-	m_CurrentRecord.reset();
+	m_CurrentBestScore.reset();
 }
 
 IGameController::~IGameController() = default;
@@ -112,7 +112,7 @@ void IGameController::EvaluateSpawnType(CSpawnEval *pEval, ESpawnType SpawnType,
 		PlayerCollisionDisabled = pPlayerCharacter->GetCore().m_CollisionDisabled;
 
 	// make sure players keep spawning at the same tile
-	// on race maps no matter what
+	// on rhythm maps no matter what
 	if(!PlayerCollision && pEval->m_Got)
 		return;
 
@@ -559,11 +559,11 @@ void IGameController::Tick()
 		}
 	}
 
-	if(m_pLoadBestTimeResult != nullptr && m_pLoadBestTimeResult->m_Completed)
+	if(m_pLoadBestScoreResult != nullptr && m_pLoadBestScoreResult->m_Completed)
 	{
-		if(m_pLoadBestTimeResult->m_Success)
+		if(m_pLoadBestScoreResult->m_Success)
 		{
-			m_CurrentRecord = m_pLoadBestTimeResult->m_CurrentRecord;
+			m_CurrentBestScore = m_pLoadBestScoreResult->m_CurrentBestScore;
 
 			for(int i = 0; i < MAX_CLIENTS; i++)
 			{
@@ -573,7 +573,7 @@ void IGameController::Tick()
 				}
 			}
 		}
-		m_pLoadBestTimeResult = nullptr;
+		m_pLoadBestScoreResult = nullptr;
 	}
 
 	DoActivityCheck();
@@ -668,10 +668,10 @@ void IGameController::Snap(int SnappingClient)
 		if(!pRaceData)
 			return;
 
-		CFinishTime MapTime = SnapMapBestTime(SnappingClient);
-		int BestTime = MapTime.m_Seconds > 0 ? MapTime.m_Seconds * 1000 + MapTime.m_Milliseconds : -1;
+		CFinishTime MapTime = SnapMapBestScore(SnappingClient);
+		int BestScore = MapTime.m_Seconds > 0 ? MapTime.m_Seconds * 1000 + MapTime.m_Milliseconds : -1;
 
-		pRaceData->m_BestTime = BestTime;
+		pRaceData->m_BestTime = BestScore;
 		pRaceData->m_Precision = 2;
 		pRaceData->m_RaceFlags = protocol7::RACEFLAG_KEEP_WANTED_WEAPON;
 	}
@@ -680,7 +680,7 @@ void IGameController::Snap(int SnappingClient)
 
 	if(!Server()->IsSixup(SnappingClient) && GameServer()->GetClientVersion(SnappingClient) >= VERSION_DDNET_MAP_BESTTIME)
 	{
-		CFinishTime MapTime = SnapMapBestTime(SnappingClient);
+		CFinishTime MapTime = SnapMapBestScore(SnappingClient);
 		if(MapTime.m_Seconds != FinishTime::UNSET)
 		{
 			CNetObj_MapBestTime *pMapTimeMsg = Server()->SnapNewItem<CNetObj_MapBestTime>(0);

@@ -4055,9 +4055,9 @@ void CGameContext::RegisterChatCommands()
 	Console()->Register("showall", "?i['0'|'1']", CFGFLAG_CHAT | CFGFLAG_SERVER, ConShowAll, this, "Whether to show players at any distance (off by default), optional i = 0 for off else for on");
 	Console()->Register("specteam", "?i['0'|'1']", CFGFLAG_CHAT | CFGFLAG_SERVER, ConSpecTeam, this, "Whether to show players from other teams when spectating (on by default), optional i = 0 for off else for on");
 	Console()->Register("ninjajetpack", "?i['0'|'1']", CFGFLAG_CHAT | CFGFLAG_SERVER, ConNinjaJetpack, this, "Whether to use ninja jetpack or not. Makes jetpack look more awesome");
-	Console()->Register("saytime", "?r[player name]", CFGFLAG_CHAT | CFGFLAG_SERVER | CFGFLAG_NONTEEHISTORIC, ConSayTime, this, "Privately messages someone's current time in this current running race (your time by default)");
-	Console()->Register("saytimeall", "", CFGFLAG_CHAT | CFGFLAG_SERVER | CFGFLAG_NONTEEHISTORIC, ConSayTimeAll, this, "Publicly messages everyone your current time in this current running race");
-	Console()->Register("time", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConTime, this, "Privately shows you your current time in this current running race in the broadcast message");
+	Console()->Register("saytime", "?r[player name]", CFGFLAG_CHAT | CFGFLAG_SERVER | CFGFLAG_NONTEEHISTORIC, ConSayTime, this, "Privately messages someone's current score in this current running rhythm (your score by default)");
+	Console()->Register("saytimeall", "", CFGFLAG_CHAT | CFGFLAG_SERVER | CFGFLAG_NONTEEHISTORIC, ConSayTimeAll, this, "Publicly messages everyone your current score in this current running rhythm");
+	Console()->Register("time", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConTime, this, "Privately shows you your current score in this current running rhythm in the broadcast message");
 	Console()->Register("timer", "?s['gametimer'|'broadcast'|'both'|'none'|'cycle']", CFGFLAG_CHAT | CFGFLAG_SERVER, ConSetTimerType, this, "Personal Setting of showing time in either broadcast or game/round timer, timer s, where s = broadcast for broadcast, gametimer for game/round timer, cycle for cycle, both for both, none for no timer and nothing to show current status");
 	Console()->Register("r", "", CFGFLAG_CHAT | CFGFLAG_SERVER | CMDFLAG_PRACTICE, ConRescue, this, "Teleport yourself out of freeze if auto rescue mode is enabled, otherwise it will set position for rescuing if grounded and teleport you out of freeze if not (use sv_rescue 1 to enable this feature)");
 	Console()->Register("rescue", "", CFGFLAG_CHAT | CFGFLAG_SERVER | CMDFLAG_PRACTICE, ConRescue, this, "Teleport yourself out of freeze if auto rescue mode is enabled, otherwise it will set position for rescuing if grounded and teleport you out of freeze if not (use sv_rescue 1 to enable this feature)");
@@ -4796,8 +4796,8 @@ void CGameContext::SendRecord(int ClientId)
 
 	CNetMsg_Sv_Record Msg;
 	CNetMsg_Sv_RecordLegacy MsgLegacy;
-	MsgLegacy.m_PlayerTimeBest = Msg.m_PlayerTimeBest = round_to_int(Score()->PlayerData(ClientId)->m_BestTime.value_or(0.0f) * 100.0f);
-	MsgLegacy.m_ServerTimeBest = Msg.m_ServerTimeBest = m_pController->m_CurrentRecord.has_value() && !g_Config.m_SvHideScore ? round_to_int(m_pController->m_CurrentRecord.value() * 100.0f) : 0;
+	MsgLegacy.m_PlayerTimeBest = Msg.m_PlayerTimeBest = round_to_int(Score()->PlayerData(ClientId)->m_BestScore.value_or(0.0f) * 100.0f);
+	MsgLegacy.m_ServerTimeBest = Msg.m_ServerTimeBest = m_pController->m_CurrentBestScore.has_value() && !g_Config.m_SvHideScore ? round_to_int(m_pController->m_CurrentBestScore.value() * 100.0f) : 0;
 	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientId);
 	if(GetClientVersion(ClientId) < VERSION_DDNET_MSG_LEGACY)
 	{
@@ -4805,7 +4805,7 @@ void CGameContext::SendRecord(int ClientId)
 	}
 }
 
-void CGameContext::SendFinish(int ClientId, float Time, std::optional<float> PreviousBestTime)
+void CGameContext::SendFinish(int ClientId, float Score, std::optional<float> PreviousBestScore)
 {
 	int ClientVersion = m_apPlayers[ClientId]->GetClientVersion();
 
@@ -4813,13 +4813,13 @@ void CGameContext::SendFinish(int ClientId, float Time, std::optional<float> Pre
 	{
 		CNetMsg_Sv_DDRaceTime Msg;
 		CNetMsg_Sv_DDRaceTimeLegacy MsgLegacy;
-		MsgLegacy.m_Time = Msg.m_Time = (int)(Time * 100.0f);
+		MsgLegacy.m_Time = Msg.m_Time = (int)(Score * 100.0f);
 		MsgLegacy.m_Check = Msg.m_Check = 0;
 		MsgLegacy.m_Finish = Msg.m_Finish = 1;
 
-		if(PreviousBestTime.has_value())
+		if(PreviousBestScore.has_value())
 		{
-			float Diff100 = (Time - PreviousBestTime.value()) * 100;
+			float Diff100 = (Score - PreviousBestScore.value()) * 100;
 			MsgLegacy.m_Check = Msg.m_Check = (int)Diff100;
 		}
 		if(VERSION_DDRACE <= ClientVersion)
@@ -4837,15 +4837,15 @@ void CGameContext::SendFinish(int ClientId, float Time, std::optional<float> Pre
 
 	CNetMsg_Sv_RaceFinish RaceFinishMsg;
 	RaceFinishMsg.m_ClientId = ClientId;
-	RaceFinishMsg.m_Time = Time * 1000;
+	RaceFinishMsg.m_Time = Score * 1000;
 	RaceFinishMsg.m_Diff = 0;
-	if(PreviousBestTime.has_value())
+	if(PreviousBestScore.has_value())
 	{
-		float Diff = absolute(Time - PreviousBestTime.value());
-		RaceFinishMsg.m_Diff = Diff * 1000 * (Time < PreviousBestTime.value() ? -1 : 1);
+		float Diff = absolute(Score - PreviousBestScore.value());
+		RaceFinishMsg.m_Diff = Diff * 1000 * (Score < PreviousBestScore.value() ? -1 : 1);
 	}
-	RaceFinishMsg.m_RecordPersonal = (!PreviousBestTime.has_value() || Time < PreviousBestTime.value());
-	RaceFinishMsg.m_RecordServer = Time < m_pController->m_CurrentRecord;
+	RaceFinishMsg.m_RecordPersonal = (!PreviousBestScore.has_value() || Score < PreviousBestScore.value());
+	RaceFinishMsg.m_RecordServer = Score < m_pController->m_CurrentBestScore;
 	Server()->SendPackMsg(&RaceFinishMsg, MSGFLAG_VITAL | MSGFLAG_NORECORD, g_Config.m_SvHideScore ? ClientId : -1);
 }
 

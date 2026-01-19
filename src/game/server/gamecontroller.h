@@ -13,7 +13,7 @@
 
 #include <game/server/teams.h>
 
-struct CScoreLoadBestTimeResult;
+struct CScoreLoadBestScoreResult;
 
 /*
 	Class: Game Controller
@@ -190,13 +190,13 @@ public:
 	virtual CFinishTime SnapPlayerTime(int SnappingClient, CPlayer *pPlayer) { return CFinishTime::Unset(); }
 
 	/**
-	 * Snaps the current server record / best time of the current map.
+	 * Snaps the current server record / best score of the current map.
 	 *
 	 * @param SnappingClient Client ID of the player that will receive the snapshot.
 	 *
-	 * @return The the map best time split into seconds and the milliseconds remainder, use CFinishTime::Unset if you want the server to prefer scores.
+	 * @return The the map best score split into seconds and the milliseconds remainder, use CFinishTime::Unset if you want the server to prefer scores.
 	 */
-	virtual CFinishTime SnapMapBestTime(int SnappingClient) { return CFinishTime::Unset(); }
+	virtual CFinishTime SnapMapBestScore(int SnappingClient) { return CFinishTime::Unset(); }
 
 	// spawn
 	virtual bool CanSpawn(int Team, vec2 *pOutPos, int ClientId);
@@ -218,9 +218,9 @@ public:
 	bool IsTeamPlay() const { return m_GameFlags & GAMEFLAG_TEAMS; }
 	// DDRace
 
-	std::optional<float> m_CurrentRecord;
+	std::optional<float> m_CurrentBestScore;
 	CGameTeams &Teams() { return m_Teams; }
-	std::shared_ptr<CScoreLoadBestTimeResult> m_pLoadBestTimeResult;
+	std::shared_ptr<CScoreLoadBestScoreResult> m_pLoadBestScoreResult;
 };
 
 #endif
