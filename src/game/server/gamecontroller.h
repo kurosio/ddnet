@@ -67,6 +67,7 @@ protected:
 
 	float EvaluateSpawnPos(CSpawnEval *pEval, vec2 Pos, int ClientId);
 	void EvaluateSpawnType(CSpawnEval *pEval, ESpawnType SpawnType, int ClientId);
+	bool CanSpawnIn(ESpawnType SpawnType, vec2 *pOutPos, int ClientId);
 
 	void ResetGame();
 

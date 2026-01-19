@@ -349,6 +349,15 @@ void CGameControllerMod::ChangeState(EStageState State)
 				if(!pPlayer)
 					continue;
 				const int ClientId = pPlayer->GetCid();
+				if(pPlayer->GetTeam() != TEAM_SPECTATORS)
+				{
+					vec2 SpawnPos;
+					if(CanSpawnIn(SPAWNTYPE_RED, &SpawnPos, ClientId) || CanSpawnIn(SPAWNTYPE_DEFAULT, &SpawnPos, ClientId))
+					{
+						pPlayer->KillCharacter(WEAPON_GAME, false);
+						pPlayer->ForceSpawn(SpawnPos);
+					}
+				}
 				GameServer()->Score()->PlayerData(ClientId)->Reset();
 				Server()->SetClientScore(ClientId, std::nullopt);
 				GameServer()->Score()->LoadPlayerData(ClientId);
