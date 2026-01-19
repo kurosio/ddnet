@@ -1492,6 +1492,9 @@ void CGameContext::OnClientPredictedInput(int ClientId, const void *pInput)
 
 	if(!m_World.m_Paused)
 		m_apPlayers[ClientId]->OnPredictedInput(pApplyInput);
+
+	if(!m_World.m_Paused)
+		m_pController->OnPredictedInput(ClientId, pApplyInput);
 }
 
 void CGameContext::OnClientPredictedEarlyInput(int ClientId, const void *pInput)

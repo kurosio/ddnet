@@ -645,6 +645,7 @@ void CGameControllerMod::ResetClientState(int ClientId)
 		return;
 
 	m_aPrevInputs[ClientId] = CNetObj_PlayerInput{};
+	m_aLatestInputs[ClientId] = CNetObj_PlayerInput{};
 	for(int LaneIndex = 0; LaneIndex < LaneCount; ++LaneIndex)
 	{
 		m_aLanePressTick[ClientId][LaneIndex] = SRhythmFieldConfig::s_InvalidPressTick;
@@ -859,10 +860,12 @@ void CGameControllerMod::OnDirectInput(int ClientId, const CNetObj_PlayerInput *
 	if(!m_pRhythmField)
 	{
 		m_aPrevInputs[ClientId] = *pNewInput;
+		m_aLatestInputs[ClientId] = *pNewInput;
 		return;
 	}
 
 	const int CurrentTick = Server()->Tick();
+	const int InputTick = maximum(0, CurrentTick - g_Config.m_SvRhythmJitterBufferTicks);
 	const int HitWindowTicks = g_Config.m_SvRhythmHitWindowTicks;
 	const bool UseTickNotes = m_vNoteTicks.size() == m_vNotes.size();
 
@@ -884,10 +887,10 @@ void CGameControllerMod::OnDirectInput(int ClientId, const CNetObj_PlayerInput *
 		if(aLanePressed[LaneIndex])
 		{
 			m_aLanePressId[ClientId][LaneIndex]++;
-			m_aLanePressTick[ClientId][LaneIndex] = CurrentTick;
+			m_aLanePressTick[ClientId][LaneIndex] = InputTick;
 		}
 		if(aLaneHeld[LaneIndex])
-			m_aLaneHoldTick[ClientId][LaneIndex] = CurrentTick;
+			m_aLaneHoldTick[ClientId][LaneIndex] = InputTick;
 	}
 
 	const vec2 HitPos = m_pRhythmField->HitZonePos();
@@ -966,6 +969,15 @@ void CGameControllerMod::OnDirectInput(int ClientId, const CNetObj_PlayerInput *
 	}
 
 	m_aPrevInputs[ClientId] = *pNewInput;
+	m_aLatestInputs[ClientId] = *pNewInput;
+}
+
+void CGameControllerMod::OnPredictedInput(int ClientId, const CNetObj_PlayerInput *pNewInput)
+{
+	if(!IsValidClientId(ClientId) || !pNewInput)
+		return;
+
+	m_aLatestInputs[ClientId] = *pNewInput;
 }
 
 void CGameControllerMod::UpdateNotes()
@@ -1116,7 +1128,7 @@ void CGameControllerMod::UpdateNotes()
 
 				if(!m_aLaneHoldActive[i][LaneIndex])
 					continue;
-				if(!LaneHeld(m_aPrevInputs[i], LaneIndex))
+				if(!LaneHeld(m_aLatestInputs[i], LaneIndex))
 					continue;
 
 				const int RawDelta = std::abs(m_aLaneHoldTick[i][LaneIndex] - SegmentTick);

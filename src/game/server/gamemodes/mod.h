@@ -81,6 +81,7 @@ class CGameControllerMod : public IGameController
 	};
 	CRhythmField *m_pRhythmField;
 	CNetObj_PlayerInput m_aPrevInputs[MAX_CLIENTS];
+	CNetObj_PlayerInput m_aLatestInputs[MAX_CLIENTS];
 	int m_aLanePressTick[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
 	int m_aLaneLastHitTick[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
 	int m_aLaneHoldTick[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
@@ -118,6 +119,7 @@ public:
 	void Snap(int SnappingClient) override;
 	int SnapPlayerScore(int SnappingClient, CPlayer *pPlayer) override;
 	void OnDirectInput(int ClientId, const CNetObj_PlayerInput *pNewInput) override;
+	void OnPredictedInput(int ClientId, const CNetObj_PlayerInput *pNewInput) override;
 
 	void TickState();
 	void ChangeState(EStageState State);
