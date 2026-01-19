@@ -286,7 +286,7 @@ void CGameControllerMod::ChangeState(EStageState State)
 			break;
 
 		case EStageState::STATE_WARMUP:
-			DoWarmup(15);
+			DoWarmup(g_Config.m_SvWarmup);
 			break;
 
 		case EStageState::STATE_ACTIVE:
