@@ -129,7 +129,7 @@ bool CTeamrank::GetSqlTop5Team(IDbConnection *pSqlServer, bool *pEnd, char *pErr
 				break;
 			}
 		}
-		str_format(paMessages[*Line], sizeof(paMessages[*Line]), "%d. %s Team Time: %d points",
+		str_format(paMessages[*Line], sizeof(paMessages[*Line]), "%d. %s Team Score: %d points",
 			Rank, aNames, Points);
 		if(Last)
 		{
@@ -260,13 +260,13 @@ bool CScoreWorker::LoadPlayerScoreCp(IDbConnection *pSqlServer, const ISqlData *
 	char aBuf[1024];
 	str_format(aBuf, sizeof(aBuf),
 		"SELECT"
-		"  Time, cp1, cp2, cp3, cp4, cp5, cp6, cp7, cp8, cp9, cp10, cp11, cp12, cp13, "
+		"  Points, cp1, cp2, cp3, cp4, cp5, cp6, cp7, cp8, cp9, cp10, cp11, cp12, cp13, "
 		"  cp14, cp15, cp16, cp17, cp18, cp19, cp20, cp21, cp22, cp23, cp24, cp25 "
 		"FROM %s_rhythm "
 		"WHERE Map = ? AND Name = ? AND "
 		"  (cp1 + cp2 + cp3 + cp4 + cp5 + cp6 + cp7 + cp8 + cp9 + cp10 + cp11 + cp12 + cp13 + cp14 + "
 		"  cp15 + cp16 + cp17 + cp18 + cp19 + cp20 + cp21 + cp22 + cp23 + cp24 + cp25) > 0 "
-		"ORDER BY Time ASC "
+		"ORDER BY Points DESC "
 		"LIMIT 1",
 		pSqlServer->GetPrefix());
 	if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
@@ -286,7 +286,7 @@ bool CScoreWorker::LoadPlayerScoreCp(IDbConnection *pSqlServer, const ISqlData *
 	if(!End)
 	{
 		pResult->SetVariant(CScorePlayerResult::PLAYER_TIMECP);
-		pResult->m_Data.m_Info.m_Score = pSqlServer->GetFloat(1);
+		pResult->m_Data.m_Info.m_Score = static_cast<float>(pSqlServer->GetInt(1));
 		for(int i = 0; i < NUM_CHECKPOINTS; i++)
 		{
 			pResult->m_Data.m_Info.m_aScoreCp[i] = pSqlServer->GetFloat(i + 2);
@@ -389,7 +389,7 @@ bool CScoreWorker::MapInfo(IDbConnection *pSqlServer, const ISqlData *pGameData,
 		"  (%s) AS Median, "
 		"  %s AS Stamp, "
 		"  %s-%s AS Ago, "
-		"  (SELECT MIN(Time) FROM %s_rhythm WHERE Map = l.Map AND Name = ?) AS OwnTime "
+		"  (SELECT MAX(Points) FROM %s_rhythm WHERE Map = l.Map AND Name = ?) AS OwnPoints "
 		"FROM ("
 		"  SELECT * FROM %s_maps "
 		"  WHERE Map LIKE %s "
@@ -434,7 +434,7 @@ bool CScoreWorker::MapInfo(IDbConnection *pSqlServer, const ISqlData *pGameData,
 		float Median = !pSqlServer->IsNull(8) ? pSqlServer->GetInt(8) : -1.0f;
 		int Stamp = pSqlServer->GetInt(9);
 		int Ago = pSqlServer->GetInt(10);
-		float OwnTime = !pSqlServer->IsNull(11) ? pSqlServer->GetFloat(11) : -1.0f;
+		int OwnPoints = !pSqlServer->IsNull(11) ? pSqlServer->GetInt(11) : -1;
 
 		char aAgoString[40] = "\0";
 		char aReleasedString[60] = "\0";
@@ -464,11 +464,10 @@ bool CScoreWorker::MapInfo(IDbConnection *pSqlServer, const ISqlData *pGameData,
 		}
 
 		char aOwnFinishesString[40] = "\0";
-		if(OwnTime > 0)
+		if(OwnPoints > 0)
 		{
-			str_time_float(OwnTime, TIME_HOURS_CENTISECS, aBuf, sizeof(aBuf));
 			str_format(aOwnFinishesString, sizeof(aOwnFinishesString),
-				", your score: %s", aBuf);
+				", your score: %d point%s", OwnPoints, OwnPoints == 1 ? "" : "s");
 		}
 
 		str_format(pResult->m_Data.m_aaMessages[0], sizeof(pResult->m_Data.m_aaMessages[0]),
@@ -566,7 +565,7 @@ bool CScoreWorker::SaveScore(IDbConnection *pSqlServer, const ISqlData *pGameDat
 	if(w == Write::NORMAL)
 	{
 		str_format(aBuf, sizeof(aBuf),
-			"SELECT COUNT(*) AS NumFinished FROM %s_rhythm WHERE Map=? AND Name=? ORDER BY time ASC LIMIT 1",
+			"SELECT COUNT(*) AS NumFinished FROM %s_rhythm WHERE Map=? AND Name=? ORDER BY Points DESC LIMIT 1",
 			pSqlServer->GetPrefix());
 		if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 		{
@@ -612,7 +611,7 @@ bool CScoreWorker::SaveScore(IDbConnection *pSqlServer, const ISqlData *pGameDat
 	// save score. Can't fail, because no UNIQUE/PRIMARY KEY constrain is defined.
 	str_format(aBuf, sizeof(aBuf),
 		"%s INTO %s_rhythm%s("
-		"	Map, Name, Timestamp, Time, Server, "
+		"	Map, Name, Timestamp, Points, Server, "
 		"	cp1, cp2, cp3, cp4, cp5, cp6, cp7, cp8, cp9, cp10, cp11, cp12, cp13, "
 		"	cp14, cp15, cp16, cp17, cp18, cp19, cp20, cp21, cp22, cp23, cp24, cp25, "
 		"	GameId, DDNet7) "
@@ -719,7 +718,7 @@ bool CScoreWorker::SaveTeamScore(IDbConnection *pSqlServer, const ISqlData *pGam
 
 		std::sort(vNames.begin(), vNames.end());
 		str_format(aBuf, sizeof(aBuf),
-			"SELECT l.Id, Name, Time "
+			"SELECT l.Id, Name, Points "
 			"FROM (" // preselect teams with first name in team
 			"  SELECT ID "
 			"  FROM %s_teamrhythm "
@@ -735,7 +734,7 @@ bool CScoreWorker::SaveTeamScore(IDbConnection *pSqlServer, const ISqlData *pGam
 		pSqlServer->BindString(2, pData->m_aaNames[0]);
 
 		bool FoundTeam = false;
-		float Time;
+		float Points;
 		CTeamrank Teamrank;
 		bool End;
 		if(!pSqlServer->Step(&End, pError, ErrorSize))
@@ -747,7 +746,7 @@ bool CScoreWorker::SaveTeamScore(IDbConnection *pSqlServer, const ISqlData *pGam
 			bool SearchTeamEnd = false;
 			while(!SearchTeamEnd)
 			{
-				Time = pSqlServer->GetFloat(3);
+				Points = pSqlServer->GetFloat(3);
 				if(!Teamrank.NextSqlResult(pSqlServer, &SearchTeamEnd, pError, ErrorSize))
 				{
 					return false;
@@ -761,11 +760,11 @@ bool CScoreWorker::SaveTeamScore(IDbConnection *pSqlServer, const ISqlData *pGam
 		}
 		if(FoundTeam)
 		{
-			dbg_msg("sql", "found team rank from same team (old score: %f, new score: %f)", Time, pData->m_Score);
-			if(pData->m_Score < Time)
+			dbg_msg("sql", "found team rank from same team (old score: %f, new score: %f)", Points, pData->m_Score);
+			if(pData->m_Score > Points)
 			{
 				str_format(aBuf, sizeof(aBuf),
-					"UPDATE %s_teamrhythm SET Time=%.2f, Timestamp=%s, DDNet7=%s, GameId=? WHERE Id = ?",
+					"UPDATE %s_teamrhythm SET Points=%.2f, Timestamp=%s, DDNet7=%s, GameId=? WHERE Id = ?",
 					pSqlServer->GetPrefix(), pData->m_Score, pSqlServer->InsertTimestampAsUtc(), pSqlServer->False());
 				if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 				{
@@ -791,7 +790,7 @@ bool CScoreWorker::SaveTeamScore(IDbConnection *pSqlServer, const ISqlData *pGam
 	{
 		// if no entry found... create a new one
 		str_format(aBuf, sizeof(aBuf),
-			"%s INTO %s_teamrhythm%s(Map, Name, Timestamp, Time, Id, GameId, DDNet7) "
+			"%s INTO %s_teamrhythm%s(Map, Name, Timestamp, Points, Id, GameId, DDNet7) "
 			"VALUES (?, ?, %s, %.2f, ?, ?, %s)",
 			pSqlServer->InsertIgnore(), pSqlServer->GetPrefix(),
 			w == Write::NORMAL ? "" : "_backup",
@@ -887,7 +886,7 @@ bool CScoreWorker::ShowRank(IDbConnection *pSqlServer, const ISqlData *pGameData
 		if(g_Config.m_SvHideScore)
 		{
 			str_format(pResult->m_Data.m_aaMessages[0], sizeof(pResult->m_Data.m_aaMessages[0]),
-				"Your time: %d points", Points);
+				"Your score: %d points", Points);
 		}
 		else
 		{
@@ -993,13 +992,13 @@ bool CScoreWorker::ShowTeamRank(IDbConnection *pSqlServer, const ISqlData *pGame
 		if(g_Config.m_SvHideScore)
 		{
 			str_format(pResult->m_Data.m_aaMessages[0], sizeof(pResult->m_Data.m_aaMessages[0]),
-				"Your team time: %d points, better than %d%%", Points, BetterThanPercent);
+				"Your team score: %d points, better than %d%%", Points, BetterThanPercent);
 		}
 		else
 		{
 			pResult->m_MessageKind = CScorePlayerResult::ALL;
 			str_format(pResult->m_Data.m_aaMessages[0], sizeof(pResult->m_Data.m_aaMessages[0]),
-				"%d. %s Team time: %d points, better than %d%%, requested by %s",
+				"%d. %s Team score: %d points, better than %d%%, requested by %s",
 				Rank, aFormattedNames, Points, BetterThanPercent, pData->m_aRequestingPlayer);
 		}
 	}
@@ -1060,7 +1059,7 @@ bool CScoreWorker::ShowTop(IDbConnection *pSqlServer, const ISqlData *pGameData,
 		int Points = pSqlServer->GetInt(2);
 		int Rank = pSqlServer->GetInt(3);
 		str_format(pResult->m_Data.m_aaMessages[Line], sizeof(pResult->m_Data.m_aaMessages[Line]),
-			"%d. %s Time: %d points", Rank, aName, Points);
+			"%d. %s Score: %d points", Rank, aName, Points);
 
 		Line++;
 	}
@@ -1094,7 +1093,7 @@ bool CScoreWorker::ShowTop(IDbConnection *pSqlServer, const ISqlData *pGameData,
 		int Points = pSqlServer->GetInt(2);
 		int Rank = pSqlServer->GetInt(3);
 		str_format(pResult->m_Data.m_aaMessages[Line], sizeof(pResult->m_Data.m_aaMessages[Line]),
-			"%d. %s Time: %d points", Rank, aName, Points);
+			"%d. %s Score: %d points", Rank, aName, Points);
 		Line++;
 	}
 
@@ -1269,7 +1268,7 @@ bool CScoreWorker::ShowPlayerTeamTop5(IDbConnection *pSqlServer, const ISqlData 
 					str_append(aFormattedNames, " & ");
 			}
 
-			str_format(paMessages[Line], sizeof(paMessages[Line]), "%d. %s Team Time: %d points",
+			str_format(paMessages[Line], sizeof(paMessages[Line]), "%d. %s Team Score: %d points",
 				Rank, aFormattedNames, Points);
 			if(Last)
 			{
@@ -1306,7 +1305,7 @@ bool CScoreWorker::ShowTimes(IDbConnection *pSqlServer, const ISqlData *pGameDat
 	if(pData->m_aName[0] != '\0') // last 5 times of a player
 	{
 		str_format(aBuf, sizeof(aBuf),
-			"SELECT Time, (%s-%s) as Ago, %s as Stamp, Server "
+			"SELECT Points, (%s-%s) as Ago, %s as Stamp, Server "
 			"FROM %s_rhythm "
 			"WHERE Map = ? AND Name = ? "
 			"ORDER BY Timestamp %s "
@@ -1324,7 +1323,7 @@ bool CScoreWorker::ShowTimes(IDbConnection *pSqlServer, const ISqlData *pGameDat
 	else // last 5 times of server
 	{
 		str_format(aBuf, sizeof(aBuf),
-			"SELECT Time, (%s-%s) as Ago, %s as Stamp, Server, Name "
+			"SELECT Points, (%s-%s) as Ago, %s as Stamp, Server, Name "
 			"FROM %s_rhythm "
 			"WHERE Map = ? "
 			"ORDER BY Timestamp %s "
@@ -1356,8 +1355,7 @@ str_copy(paMessages[0], "------------- Last Scores -------------", sizeof(paMess
 
 	do
 	{
-		float Time = pSqlServer->GetFloat(1);
-		str_time_float(Time, TIME_HOURS_CENTISECS, aBuf, sizeof(aBuf));
+		int Points = pSqlServer->GetInt(1);
 		int Ago = pSqlServer->GetInt(2);
 		int Stamp = pSqlServer->GetInt(3);
 		char aServer[5];
@@ -1373,10 +1371,10 @@ str_copy(paMessages[0], "------------- Last Scores -------------", sizeof(paMess
 		{
 			if(Stamp == 0) // stamp is 00:00:00 cause it's an old entry from old times where there where no stamps yet
 				str_format(paMessages[Line], sizeof(paMessages[Line]),
-					"%s%s, don't know how long ago", aServerFormatted, aBuf);
+					"%s%d points, don't know how long ago", aServerFormatted, Points);
 			else
 				str_format(paMessages[Line], sizeof(paMessages[Line]),
-					"%s%s ago, %s", aServerFormatted, aAgoString, aBuf);
+					"%s%s ago, %d points", aServerFormatted, aAgoString, Points);
 		}
 		else // last 5 times of the server
 		{
@@ -1385,12 +1383,12 @@ str_copy(paMessages[0], "------------- Last Scores -------------", sizeof(paMess
 			if(Stamp == 0) // stamp is 00:00:00 cause it's an old entry from old times where there where no stamps yet
 			{
 				str_format(paMessages[Line], sizeof(paMessages[Line]),
-					"%s%s, %s, don't know when", aServerFormatted, aName, aBuf);
+					"%s%s, %d points, don't know when", aServerFormatted, aName, Points);
 			}
 			else
 			{
 				str_format(paMessages[Line], sizeof(paMessages[Line]),
-					"%s%s, %s ago, %s", aServerFormatted, aName, aAgoString, aBuf);
+					"%s%s, %s ago, %d points", aServerFormatted, aName, aAgoString, Points);
 			}
 		}
 		Line++;

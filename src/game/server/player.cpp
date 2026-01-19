@@ -1012,9 +1012,9 @@ void CPlayer::ProcessScoreResult(CScorePlayerResult &Result)
 		}
 		case CScorePlayerResult::PLAYER_TIMECP:
 			GameServer()->Score()->PlayerData(m_ClientId)->SetBestScoreCp(Result.m_Data.m_Info.m_aScoreCp);
-			char aBuf[128], aTime[32];
-			str_time_float(Result.m_Data.m_Info.m_Score.value(), TIME_HOURS_CENTISECS, aTime, sizeof(aTime));
-			str_format(aBuf, sizeof(aBuf), "Showing the checkpoint scores for '%s' with a rhythm score of %s", Result.m_Data.m_Info.m_aRequestedPlayer, aTime);
+			char aBuf[128];
+			int Points = static_cast<int>(Result.m_Data.m_Info.m_Score.value());
+			str_format(aBuf, sizeof(aBuf), "Showing the checkpoint scores for '%s' with a rhythm score of %d point%s", Result.m_Data.m_Info.m_aRequestedPlayer, Points, Points == 1 ? "" : "s");
 			GameServer()->SendChatTarget(m_ClientId, aBuf);
 			break;
 		}

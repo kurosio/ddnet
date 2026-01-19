@@ -56,7 +56,6 @@ void IDbConnection::FormatCreateRhythm(char *aBuf, unsigned int BufferSize, bool
 		"  Name VARCHAR(%d) COLLATE %s NOT NULL, "
 		"  Timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, "
 		"  Points INT DEFAULT 0, "
-		"  Time FLOAT DEFAULT 0, "
 		"  Server CHAR(4), "
 		"  cp1 FLOAT DEFAULT 0, cp2 FLOAT DEFAULT 0, cp3 FLOAT DEFAULT 0, "
 		"  cp4 FLOAT DEFAULT 0, cp5 FLOAT DEFAULT 0, cp6 FLOAT DEFAULT 0, "
@@ -69,7 +68,7 @@ void IDbConnection::FormatCreateRhythm(char *aBuf, unsigned int BufferSize, bool
 		"  cp25 FLOAT DEFAULT 0, "
 		"  GameId VARCHAR(64), "
 		"  DDNet7 BOOL DEFAULT FALSE, "
-		"  PRIMARY KEY (Map, Name, Time, Timestamp, Server)"
+		"  PRIMARY KEY (Map, Name, Points, Timestamp, Server)"
 		")",
 		GetPrefix(), Backup ? "_backup" : "",
 		BinaryCollate(), MAX_NAME_LENGTH_SQL, BinaryCollate());
@@ -83,7 +82,6 @@ void IDbConnection::FormatCreateTeamrhythm(char *aBuf, unsigned int BufferSize, 
 		"  Name VARCHAR(%d) COLLATE %s NOT NULL, "
 		"  Timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, "
 		"  Points INT DEFAULT 0, "
-		"  Time FLOAT DEFAULT 0, "
 		"  ID %s NOT NULL, " // VARBINARY(16) for MySQL and BLOB for SQLite
 		"  GameId VARCHAR(64), "
 		"  DDNet7 BOOL DEFAULT FALSE, "
