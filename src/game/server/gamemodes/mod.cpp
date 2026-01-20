@@ -98,10 +98,6 @@ CGameControllerMod::CGameControllerMod(class CGameContext *pGameServer) :
 	{
 		LoadDanceMapData(Server()->GetMapName());
 	}
-	else
-	{
-		DoWarmup(-1);
-	}
 }
 
 CGameControllerMod::~CGameControllerMod() = default;
@@ -276,7 +272,6 @@ void CGameControllerMod::ChangeState(EStageState State)
 		default: break;
 
 		case EStageState::STATE_LOBBY:
-			DoWarmup(-1);
 			ChangeMap("lobby");
 			for(auto *pPlayer : GameServer()->m_apPlayers)
 			{
@@ -399,7 +394,7 @@ int CGameControllerMod::SnapPlayerScore(int SnappingClient, CPlayer *pPlayer)
 
 bool CGameControllerMod::CanSpawn(int Team, vec2 *pOutPos, int ClientId)
 {
-	if(!IsLobbyMap() && (m_State == EStageState::STATE_WARMUP || m_State == EStageState::STATE_ENTER))
+	if(!IsLobbyMap() &&  m_State == EStageState::STATE_ACTIVE)
 	{
 		if(CanSpawnIn(SPAWNTYPE_RED, pOutPos, ClientId))
 			return true;
@@ -674,7 +669,6 @@ void CGameControllerMod::ResetClientState(int ClientId)
 		return;
 
 	m_aPrevInputs[ClientId] = CNetObj_PlayerInput{};
-	m_aPrevEarlyInputs[ClientId] = CNetObj_PlayerInput{};
 	m_aLatestInputs[ClientId] = CNetObj_PlayerInput{};
 	for(int LaneIndex = 0; LaneIndex < LaneCount; ++LaneIndex)
 	{

@@ -30,7 +30,7 @@ IGameController::IGameController(class CGameContext *pGameServer) :
 	m_pGameType = "unknown";
 
 	//
-	DoWarmup(g_Config.m_SvWarmup);
+	DoWarmup(-1);
 	m_GameOverTick = -1;
 	m_SuddenDeath = 0;
 	m_RoundStartTick = Server()->Tick();

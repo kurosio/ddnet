@@ -81,7 +81,6 @@ class CGameControllerMod : public IGameController
 	};
 	CRhythmField *m_pRhythmField;
 	CNetObj_PlayerInput m_aPrevInputs[MAX_CLIENTS];
-	CNetObj_PlayerInput m_aPrevEarlyInputs[MAX_CLIENTS];
 	CNetObj_PlayerInput m_aLatestInputs[MAX_CLIENTS];
 	int m_aLanePressTick[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
 	int m_aLaneLastHitTick[MAX_CLIENTS][SRhythmFieldConfig::s_LaneCount];
