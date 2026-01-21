@@ -1417,10 +1417,10 @@ void CCharacter::HandleBroadcast()
 
 	if(m_DDRaceState == ERaceState::STARTED && m_pPlayer->GetClientVersion() == VERSION_VANILLA && !Server()->IsSixup(m_pPlayer->GetCid()) &&
 		m_LastTimeCpBroadcasted != m_LastTimeCp && m_LastTimeCp > -1 &&
-		m_TimeCpBroadcastEndTick > Server()->Tick() && pData->m_BestTime && pData->m_aBestTimeCp[m_LastTimeCp] != 0)
+		m_TimeCpBroadcastEndTick > Server()->Tick() && pData->m_BestScore && pData->m_aBestScoreCp[m_LastTimeCp] != 0)
 	{
 		char aBroadcast[128];
-		float Diff = m_aCurrentTimeCp[m_LastTimeCp] - pData->m_aBestTimeCp[m_LastTimeCp];
+		float Diff = m_aCurrentTimeCp[m_LastTimeCp] - pData->m_aBestScoreCp[m_LastTimeCp];
 		str_format(aBroadcast, sizeof(aBroadcast), "Checkpoint | Diff : %+5.2f", Diff);
 		GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCid());
 		m_LastTimeCpBroadcasted = m_LastTimeCp;
@@ -1577,12 +1577,12 @@ void CCharacter::SetTimeCheckpoint(int TimeCheckpoint)
 		if(m_pPlayer->GetClientVersion() >= VERSION_DDRACE || Server()->IsSixup(m_pPlayer->GetCid()))
 		{
 			CPlayerData *pData = GameServer()->Score()->PlayerData(m_pPlayer->GetCid());
-			if(pData->m_aBestTimeCp[m_LastTimeCp] != 0.0f)
+			if(pData->m_aBestScoreCp[m_LastTimeCp] != 0.0f)
 			{
 				if(Server()->IsSixup(m_pPlayer->GetCid()))
 				{
 					protocol7::CNetMsg_Sv_Checkpoint Msg;
-					float Diff = (m_aCurrentTimeCp[m_LastTimeCp] - pData->m_aBestTimeCp[m_LastTimeCp]) * 1000;
+					float Diff = (m_aCurrentTimeCp[m_LastTimeCp] - pData->m_aBestScoreCp[m_LastTimeCp]) * 1000;
 					Msg.m_Diff = (int)Diff;
 					Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, m_pPlayer->GetCid());
 				}
@@ -1591,7 +1591,7 @@ void CCharacter::SetTimeCheckpoint(int TimeCheckpoint)
 					CNetMsg_Sv_DDRaceTime Msg;
 					Msg.m_Time = (int)(m_Time * 100.0f);
 					Msg.m_Finish = 0;
-					float Diff = (m_aCurrentTimeCp[m_LastTimeCp] - pData->m_aBestTimeCp[m_LastTimeCp]) * 100;
+					float Diff = (m_aCurrentTimeCp[m_LastTimeCp] - pData->m_aBestScoreCp[m_LastTimeCp]) * 100;
 					Msg.m_Check = (int)Diff;
 					Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, m_pPlayer->GetCid());
 				}

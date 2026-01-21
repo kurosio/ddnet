@@ -54,6 +54,8 @@ enum
 
 // dnet
 class CCharacter;
+class CRhythmArrow;
+class CRhythmField;
 class IConfigManager;
 class CConfig;
 class CHeap;
@@ -262,6 +264,8 @@ public:
 
 	void CreateAllEntities(bool Initial);
 	CPlayer *CreatePlayer(int ClientId, int StartTeam, bool Afk, int LastWhisperTo);
+	CRhythmField *CreateRhythmField(vec2 Pos, float Bpm, float HitRadius);
+	CRhythmArrow *CreateRhythmArrow(CRhythmField *pField, vec2 Origin, vec2 Direction, float SpeedPerTick, int HitTick, int LaneIndex, float MissY, float VelScale, float TailLength = 0.0f);
 
 	char m_aDeleteTempfile[128];
 	void DeleteTempfile();
@@ -490,7 +494,6 @@ private:
 	static void ConTimes(IConsole::IResult *pResult, void *pUserData);
 	static void ConPoints(IConsole::IResult *pResult, void *pUserData);
 	static void ConTopPoints(IConsole::IResult *pResult, void *pUserData);
-	static void ConTimeCP(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConDND(IConsole::IResult *pResult, void *pUserData);
 	static void ConWhispers(IConsole::IResult *pResult, void *pUserData);
@@ -645,7 +648,7 @@ public:
 	bool IsRunningKickOrSpecVote(int ClientId) const;
 
 	void SendRecord(int ClientId);
-	void SendFinish(int ClientId, float Time, std::optional<float> PreviousBestTime);
+	void SendFinish(int ClientId, float Score, std::optional<float> PreviousBestScore);
 	void SendSaveCode(int Team, int TeamSize, int State, const char *pError, const char *pSaveRequester, const char *pServerName, const char *pGeneratedCode, const char *pCode);
 	void OnSetAuthed(int ClientId, int Level) override;
 

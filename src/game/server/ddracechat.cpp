@@ -1110,7 +1110,7 @@ void CGameContext::ConLock(IConsole::IResult *pResult, void *pUserData)
 		if(pSelf->m_pController->Teams().TeamFlock(Team))
 			str_format(aBuf, sizeof(aBuf), "'%s' locked your team.", pSelf->Server()->ClientName(pResult->m_ClientId));
 		else
-			str_format(aBuf, sizeof(aBuf), "'%s' locked your team. After the race starts, killing will kill everyone in your team.", pSelf->Server()->ClientName(pResult->m_ClientId));
+			str_format(aBuf, sizeof(aBuf), "'%s' locked your team. After the rhythm starts, killing will kill everyone in your team.", pSelf->Server()->ClientName(pResult->m_ClientId));
 		pSelf->SendChatTeam(Team, aBuf);
 	}
 }
@@ -1677,11 +1677,9 @@ void CGameContext::ConSayTime(IConsole::IResult *pResult, void *pUserData)
 	if(pChr->m_DDRaceState != ERaceState::STARTED)
 		return;
 
-	char aBufTime[32];
 	char aBuf[64];
-	int64_t Time = (int64_t)100 * (float)(pSelf->Server()->Tick() - pChr->m_StartTime) / ((float)pSelf->Server()->TickSpeed());
-	str_time(Time, TIME_HOURS, aBufTime, sizeof(aBufTime));
-	str_format(aBuf, sizeof(aBuf), "%s current race time is %s", aBufName, aBufTime);
+	const int Score = pSelf->m_pController->SnapPlayerScore(pResult->m_ClientId, pPlayer);
+	str_format(aBuf, sizeof(aBuf), "%s current rhythm score is %d point%s", aBufName, Score, Score == 1 ? "" : "s");
 	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp", aBuf);
 }
 
@@ -1700,12 +1698,10 @@ void CGameContext::ConSayTimeAll(IConsole::IResult *pResult, void *pUserData)
 	if(pChr->m_DDRaceState != ERaceState::STARTED)
 		return;
 
-	char aBufTime[32];
 	char aBuf[64];
-	int64_t Time = (int64_t)100 * (float)(pSelf->Server()->Tick() - pChr->m_StartTime) / ((float)pSelf->Server()->TickSpeed());
 	const char *pName = pSelf->Server()->ClientName(pResult->m_ClientId);
-	str_time(Time, TIME_HOURS, aBufTime, sizeof(aBufTime));
-	str_format(aBuf, sizeof(aBuf), "%s's current race time is %s", pName, aBufTime);
+	const int Score = pSelf->m_pController->SnapPlayerScore(pResult->m_ClientId, pPlayer);
+	str_format(aBuf, sizeof(aBuf), "%s's current rhythm score is %d point%s", pName, Score, Score == 1 ? "" : "s");
 	pSelf->SendChat(-1, TEAM_ALL, aBuf, pResult->m_ClientId);
 }
 
@@ -1722,15 +1718,13 @@ void CGameContext::ConTime(IConsole::IResult *pResult, void *pUserData)
 	if(!pChr)
 		return;
 
-	char aBufTime[32];
 	char aBuf[64];
-	int64_t Time = (int64_t)100 * (float)(pSelf->Server()->Tick() - pChr->m_StartTime) / ((float)pSelf->Server()->TickSpeed());
-	str_time(Time, TIME_HOURS, aBufTime, sizeof(aBufTime));
-	str_format(aBuf, sizeof(aBuf), "Your time is %s", aBufTime);
+	const int Score = pSelf->m_pController->SnapPlayerScore(pResult->m_ClientId, pPlayer);
+	str_format(aBuf, sizeof(aBuf), "Your score is %d point%s", Score, Score == 1 ? "" : "s");
 	pSelf->SendBroadcast(aBuf, pResult->m_ClientId);
 }
 
-static const char s_aaMsg[4][128] = {"game/round timer.", "broadcast.", "both game/round timer and broadcast.", "racetime."};
+static const char s_aaMsg[4][128] = {"game/round timer.", "broadcast.", "both game/round timer and broadcast.", "rhythmscore."};
 
 void CGameContext::ConSetTimerType(IConsole::IResult *pResult, void *pUserData)
 {
@@ -2469,6 +2463,11 @@ void CGameContext::ConProtectedKill(IConsole::IResult *pResult, void *pUserData)
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 	if(!pPlayer)
 		return;
+	if(!pSelf->m_pController->AllowKill(pResult->m_ClientId))
+	{
+		pSelf->SendChatTarget(pResult->m_ClientId, "Killing is disabled during the rhythm round.");
+		return;
+	}
 	CCharacter *pChr = pPlayer->GetCharacter();
 	if(!pChr)
 		return;
@@ -2495,7 +2494,7 @@ void CGameContext::ConPoints(IConsole::IResult *pResult, void *pUserData)
 			pSelf->Console()->Print(
 				IConsole::OUTPUT_LEVEL_STANDARD,
 				"chatresp",
-				"Showing the global points of other players is not allowed on this server.");
+				"Showing the global rhythm scores of other players is not allowed on this server.");
 	}
 	else
 		pSelf->Score()->ShowPoints(pResult->m_ClientId,
@@ -2511,7 +2510,7 @@ void CGameContext::ConTopPoints(IConsole::IResult *pResult, void *pUserData)
 	if(g_Config.m_SvHideScore)
 	{
 		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-			"Showing the global top points is not allowed on this server.");
+			"Showing the global top rhythm scores is not allowed on this server.");
 		return;
 	}
 
@@ -2519,25 +2518,4 @@ void CGameContext::ConTopPoints(IConsole::IResult *pResult, void *pUserData)
 		pSelf->Score()->ShowTopPoints(pResult->m_ClientId, pResult->GetInteger(0));
 	else
 		pSelf->Score()->ShowTopPoints(pResult->m_ClientId);
-}
-
-void CGameContext::ConTimeCP(IConsole::IResult *pResult, void *pUserData)
-{
-	CGameContext *pSelf = (CGameContext *)pUserData;
-	if(!CheckClientId(pResult->m_ClientId))
-		return;
-
-	if(g_Config.m_SvHideScore)
-	{
-		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "chatresp",
-			"Showing the checkpoint times is not allowed on this server.");
-		return;
-	}
-
-	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
-	if(!pPlayer)
-		return;
-
-	const char *pName = pResult->GetString(0);
-	pSelf->Score()->LoadPlayerTimeCp(pResult->m_ClientId, pName);
 }

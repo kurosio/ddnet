@@ -132,7 +132,7 @@ TEST_P(SingleScore, TopRegional)
 	ASSERT_TRUE(CScoreWorker::ShowTop(m_pConn, &m_PlayerRequest, m_aError, sizeof(m_aError))) << m_aError;
 	ExpectLines(m_pPlayerResult,
 		{"------------ Global Top ------------",
-			"1. nameless tee Time: 01:40.00",
+			"1. nameless tee Time: 100 points",
 			"------------ GER Top ------------"});
 }
 
@@ -142,7 +142,7 @@ TEST_P(SingleScore, Top)
 	ASSERT_TRUE(CScoreWorker::ShowTop(m_pConn, &m_PlayerRequest, m_aError, sizeof(m_aError))) << m_aError;
 	ExpectLines(m_pPlayerResult,
 		{"------------ Global Top ------------",
-			"1. nameless tee Time: 01:40.00",
+			"1. nameless tee Time: 100 points",
 			"-----------------------------------------"});
 }
 
@@ -150,14 +150,14 @@ TEST_P(SingleScore, RankRegional)
 {
 	g_Config.m_SvRegionalRankings = true;
 	ASSERT_TRUE(CScoreWorker::ShowRank(m_pConn, &m_PlayerRequest, m_aError, sizeof(m_aError))) << m_aError;
-	ExpectLines(m_pPlayerResult, {"nameless tee - 01:40.00 - better than 100% - requested by brainless tee", "Global rank 1 - GER unranked"}, true);
+	ExpectLines(m_pPlayerResult, {"nameless tee - 100 points - better than 100% - requested by brainless tee", "Global rank 1 - GER unranked"}, true);
 }
 
 TEST_P(SingleScore, Rank)
 {
 	g_Config.m_SvRegionalRankings = false;
 	ASSERT_TRUE(CScoreWorker::ShowRank(m_pConn, &m_PlayerRequest, m_aError, sizeof(m_aError))) << m_aError;
-	ExpectLines(m_pPlayerResult, {"nameless tee - 01:40.00 - better than 100% - requested by brainless tee", "Global rank 1"}, true);
+	ExpectLines(m_pPlayerResult, {"nameless tee - 100 points - better than 100% - requested by brainless tee", "Global rank 1"}, true);
 }
 
 TEST_P(SingleScore, TopServerRegional)
@@ -167,9 +167,9 @@ TEST_P(SingleScore, TopServerRegional)
 	ASSERT_TRUE(CScoreWorker::ShowTop(m_pConn, &m_PlayerRequest, m_aError, sizeof(m_aError))) << m_aError;
 	ExpectLines(m_pPlayerResult,
 		{"------------ Global Top ------------",
-			"1. nameless tee Time: 01:40.00",
+			"1. nameless tee Time: 100 points",
 			"------------ USA Top ------------",
-			"1. nameless tee Time: 01:40.00"});
+			"1. nameless tee Time: 100 points"});
 }
 
 TEST_P(SingleScore, TopServer)
@@ -179,7 +179,7 @@ TEST_P(SingleScore, TopServer)
 	ASSERT_TRUE(CScoreWorker::ShowTop(m_pConn, &m_PlayerRequest, m_aError, sizeof(m_aError))) << m_aError;
 	ExpectLines(m_pPlayerResult,
 		{"------------ Global Top ------------",
-			"1. nameless tee Time: 01:40.00",
+			"1. nameless tee Time: 100 points",
 			"-----------------------------------------"});
 }
 
@@ -188,7 +188,7 @@ TEST_P(SingleScore, RankServerRegional)
 	g_Config.m_SvRegionalRankings = true;
 	str_copy(m_PlayerRequest.m_aServer, "USA", sizeof(m_PlayerRequest.m_aServer));
 	ASSERT_TRUE(CScoreWorker::ShowRank(m_pConn, &m_PlayerRequest, m_aError, sizeof(m_aError))) << m_aError;
-	ExpectLines(m_pPlayerResult, {"nameless tee - 01:40.00 - better than 100% - requested by brainless tee", "Global rank 1 - USA rank 1"}, true);
+	ExpectLines(m_pPlayerResult, {"nameless tee - 100 points - better than 100% - requested by brainless tee", "Global rank 1 - USA rank 1"}, true);
 }
 
 TEST_P(SingleScore, RankServer)
@@ -196,7 +196,7 @@ TEST_P(SingleScore, RankServer)
 	g_Config.m_SvRegionalRankings = false;
 	str_copy(m_PlayerRequest.m_aServer, "USA", sizeof(m_PlayerRequest.m_aServer));
 	ASSERT_TRUE(CScoreWorker::ShowRank(m_pConn, &m_PlayerRequest, m_aError, sizeof(m_aError))) << m_aError;
-	ExpectLines(m_pPlayerResult, {"nameless tee - 01:40.00 - better than 100% - requested by brainless tee", "Global rank 1"}, true);
+	ExpectLines(m_pPlayerResult, {"nameless tee - 100 points - better than 100% - requested by brainless tee", "Global rank 1"}, true);
 }
 
 TEST_P(SingleScore, LoadPlayerData)
@@ -308,7 +308,7 @@ TEST_P(TeamScore, All)
 	ASSERT_TRUE(CScoreWorker::ShowTeamTop5(m_pConn, &m_PlayerRequest, m_aError, sizeof(m_aError))) << m_aError;
 	ExpectLines(m_pPlayerResult,
 		{"------- Team Top 5 -------",
-			"1. brainless tee & nameless tee Team Time: 01:40.00",
+			"1. brainless tee & nameless tee Team Time: 100 points",
 			"-------------------------------"});
 }
 
@@ -319,9 +319,9 @@ TEST_P(TeamScore, TeamTop5Regional)
 	ASSERT_TRUE(CScoreWorker::ShowTeamTop5(m_pConn, &m_PlayerRequest, m_aError, sizeof(m_aError))) << m_aError;
 	ExpectLines(m_pPlayerResult,
 		{"------- Team Top 5 -------",
-			"1. brainless tee & nameless tee Team Time: 01:40.00",
+			"1. brainless tee & nameless tee Team Time: 100 points",
 			"----- USA Team Top -----",
-			"1. brainless tee & nameless tee Team Time: 01:40.00"});
+			"1. brainless tee & nameless tee Team Time: 100 points"});
 }
 
 TEST_P(TeamScore, PlayerExists)
@@ -330,7 +330,7 @@ TEST_P(TeamScore, PlayerExists)
 	ASSERT_TRUE(CScoreWorker::ShowPlayerTeamTop5(m_pConn, &m_PlayerRequest, m_aError, sizeof(m_aError))) << m_aError;
 	ExpectLines(m_pPlayerResult,
 		{"------- Team Top 5 -------",
-			"1. brainless tee & nameless tee Team Time: 01:40.00",
+			"1. brainless tee & nameless tee Team Time: 100 points",
 			"---------------------------------"});
 }
 
@@ -348,7 +348,7 @@ TEST_P(TeamScore, RankUpdates)
 	ASSERT_TRUE(CScoreWorker::ShowPlayerTeamTop5(m_pConn, &m_PlayerRequest, m_aError, sizeof(m_aError))) << m_aError;
 	ExpectLines(m_pPlayerResult,
 		{"------- Team Top 5 -------",
-			"1. brainless tee & nameless tee Team Time: 01:38.00",
+			"1. brainless tee & nameless tee Team Time: 98 points",
 			"---------------------------------"});
 }
 

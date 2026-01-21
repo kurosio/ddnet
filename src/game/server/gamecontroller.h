@@ -13,7 +13,7 @@
 
 #include <game/server/teams.h>
 
-struct CScoreLoadBestTimeResult;
+struct CScoreLoadBestScoreResult;
 
 /*
 	Class: Game Controller
@@ -67,6 +67,7 @@ protected:
 
 	float EvaluateSpawnPos(CSpawnEval *pEval, vec2 Pos, int ClientId);
 	void EvaluateSpawnType(CSpawnEval *pEval, ESpawnType SpawnType, int ClientId);
+	bool CanSpawnIn(ESpawnType SpawnType, vec2 *pOutPos, int ClientId);
 
 	void ResetGame();
 
@@ -143,6 +144,9 @@ public:
 	virtual void Tick();
 
 	virtual void Snap(int SnappingClient);
+	virtual void OnDirectInput(int ClientId, const CNetObj_PlayerInput *pNewInput) {}
+	virtual void OnPredictedInput(int ClientId, const CNetObj_PlayerInput *pNewInput) {}
+	virtual void OnPredictedEarlyInput(int ClientId, const CNetObj_PlayerInput *pNewInput) {}
 
 	/**
 	 * Sets the score value that will be shown in the scoreboard.
@@ -189,16 +193,17 @@ public:
 	virtual CFinishTime SnapPlayerTime(int SnappingClient, CPlayer *pPlayer) { return CFinishTime::Unset(); }
 
 	/**
-	 * Snaps the current server record / best time of the current map.
+	 * Snaps the current server record / best score of the current map.
 	 *
 	 * @param SnappingClient Client ID of the player that will receive the snapshot.
 	 *
-	 * @return The the map best time split into seconds and the milliseconds remainder, use CFinishTime::Unset if you want the server to prefer scores.
+	 * @return The the map best score split into seconds and the milliseconds remainder, use CFinishTime::Unset if you want the server to prefer scores.
 	 */
-	virtual CFinishTime SnapMapBestTime(int SnappingClient) { return CFinishTime::Unset(); }
+	virtual CFinishTime SnapMapBestScore(int SnappingClient) { return CFinishTime::Unset(); }
 
 	// spawn
 	virtual bool CanSpawn(int Team, vec2 *pOutPos, int ClientId);
+	virtual bool AllowKill(int ClientId) const;
 
 	virtual void DoTeamChange(class CPlayer *pPlayer, int Team, bool DoChatMsg = true);
 
@@ -217,9 +222,9 @@ public:
 	bool IsTeamPlay() const { return m_GameFlags & GAMEFLAG_TEAMS; }
 	// DDRace
 
-	std::optional<float> m_CurrentRecord;
+	std::optional<float> m_CurrentBestScore;
 	CGameTeams &Teams() { return m_Teams; }
-	std::shared_ptr<CScoreLoadBestTimeResult> m_pLoadBestTimeResult;
+	std::shared_ptr<CScoreLoadBestScoreResult> m_pLoadBestScoreResult;
 };
 
 #endif

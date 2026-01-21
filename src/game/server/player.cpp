@@ -86,6 +86,10 @@ void CPlayer::Reset()
 	m_Halloween = false;
 	m_FirstPacket = true;
 
+	// beat dance
+	m_FixedViewPos.reset();
+	//
+
 	m_SendVoteIndex = -1;
 
 	if(g_Config.m_Events)
@@ -233,7 +237,7 @@ void CPlayer::Tick()
 			if(m_pCharacter->IsAlive())
 			{
 				ProcessPause();
-				if(!m_Paused)
+				if(!m_Paused && !IsViewLocked())
 					m_ViewPos = m_pCharacter->m_Pos;
 			}
 			else if(!m_pCharacter->IsPaused())
@@ -255,6 +259,12 @@ void CPlayer::Tick()
 	}
 
 	m_TuneZoneOld = m_TuneZone; // determine needed tunings with viewpos
+
+	// beat dance
+	if(IsViewLocked())
+		m_ViewPos = *m_FixedViewPos;
+	//
+
 	int CurrentIndex = GameServer()->Collision()->GetMapIndex(m_ViewPos);
 	m_TuneZone = GameServer()->Collision()->IsTune(CurrentIndex);
 
@@ -293,7 +303,7 @@ void CPlayer::PostTick()
 	}
 
 	// update view pos for spectators
-	if((m_Team == TEAM_SPECTATORS || m_Paused) && m_SpectatorId != SPEC_FREEVIEW && GameServer()->m_apPlayers[m_SpectatorId] && GameServer()->m_apPlayers[m_SpectatorId]->GetCharacter())
+	if(!IsViewLocked() && (m_Team == TEAM_SPECTATORS || m_Paused) && m_SpectatorId != SPEC_FREEVIEW && GameServer()->m_apPlayers[m_SpectatorId] && GameServer()->m_apPlayers[m_SpectatorId]->GetCharacter())
 		m_ViewPos = GameServer()->m_apPlayers[m_SpectatorId]->GetCharacter()->m_Pos;
 }
 
@@ -363,15 +373,23 @@ void CPlayer::Snap(int SnappingClient)
 		pPlayerInfo->m_Latency = Latency;
 	}
 
-	if(m_ClientId == SnappingClient && (m_Team == TEAM_SPECTATORS || m_Paused))
+	const bool ViewLocked = IsViewLocked();
+	if(m_ClientId == SnappingClient && (m_Team == TEAM_SPECTATORS || m_Paused || ViewLocked))
 	{
+		int SpectatorId = m_SpectatorId;
+
+		// beat dance
+		if(ViewLocked)
+			SpectatorId = m_ClientId;
+		//
+
 		if(!Server()->IsSixup(SnappingClient))
 		{
 			CNetObj_SpectatorInfo *pSpectatorInfo = Server()->SnapNewItem<CNetObj_SpectatorInfo>(m_ClientId);
 			if(!pSpectatorInfo)
 				return;
 
-			pSpectatorInfo->m_SpectatorId = m_SpectatorId;
+			pSpectatorInfo->m_SpectatorId = SpectatorId;
 			pSpectatorInfo->m_X = m_ViewPos.x;
 			pSpectatorInfo->m_Y = m_ViewPos.y;
 		}
@@ -382,7 +400,7 @@ void CPlayer::Snap(int SnappingClient)
 				return;
 
 			pSpectatorInfo->m_SpecMode = m_SpectatorId == SPEC_FREEVIEW ? protocol7::SPEC_FREEVIEW : protocol7::SPEC_PLAYER;
-			pSpectatorInfo->m_SpectatorId = m_SpectatorId;
+			pSpectatorInfo->m_SpectatorId = SpectatorId;
 			pSpectatorInfo->m_X = m_ViewPos.x;
 			pSpectatorInfo->m_Y = m_ViewPos.y;
 		}
@@ -391,7 +409,7 @@ void CPlayer::Snap(int SnappingClient)
 	if(m_ClientId == SnappingClient)
 	{
 		// send extended spectator info even when playing, this allows demo to record camera settings for local player
-		const int SpectatingClient = ((m_Team != TEAM_SPECTATORS && !m_Paused) || m_SpectatorId < 0 || m_SpectatorId >= MAX_CLIENTS) ? TranslatedId : m_SpectatorId;
+		const int SpectatingClient = ((m_Team != TEAM_SPECTATORS && !m_Paused && !ViewLocked) || m_SpectatorId < 0 || m_SpectatorId >= MAX_CLIENTS) ? TranslatedId : m_SpectatorId;
 		const CPlayer *pSpecPlayer = GameServer()->m_apPlayers[SpectatingClient];
 
 		if(pSpecPlayer)
@@ -405,7 +423,7 @@ void CPlayer::Snap(int SnappingClient)
 			pDDNetSpectatorInfo->m_Deadzone = pSpecPlayer->m_CameraInfo.m_Deadzone;
 			pDDNetSpectatorInfo->m_FollowFactor = pSpecPlayer->m_CameraInfo.m_FollowFactor;
 
-			if(pSpecPlayer->m_EnableSpectatorCount && SpectatingClient == TranslatedId && SnappingClient != SERVER_DEMO_CLIENT && m_Team != TEAM_SPECTATORS && !m_Paused)
+			if(pSpecPlayer->m_EnableSpectatorCount && SpectatingClient == TranslatedId && SnappingClient != SERVER_DEMO_CLIENT && m_Team != TEAM_SPECTATORS && !m_Paused && !ViewLocked)
 			{
 				CNetObj_SpectatorCount *pSpectatorCount = Server()->SnapNewItem<CNetObj_SpectatorCount>(0);
 				if(!pSpectatorCount)
@@ -417,7 +435,7 @@ void CPlayer::Snap(int SnappingClient)
 				{
 					if(!pPlayer || !pPlayer->m_EnableSpectatorCount || pPlayer->m_ClientId == TranslatedId || pPlayer->m_Afk ||
 						(Server()->IsRconAuthed(pPlayer->m_ClientId) && Server()->HasAuthHidden(pPlayer->m_ClientId)) ||
-						!(pPlayer->m_Paused || pPlayer->m_Team == TEAM_SPECTATORS))
+						!(pPlayer->m_Paused || pPlayer->IsViewLocked() || pPlayer->m_Team == TEAM_SPECTATORS))
 					{
 						continue;
 					}
@@ -454,6 +472,8 @@ void CPlayer::Snap(int SnappingClient)
 	if(m_Afk)
 		pDDNetPlayer->m_Flags |= EXPLAYERFLAG_AFK;
 	if(m_Paused == PAUSE_SPEC)
+		pDDNetPlayer->m_Flags |= EXPLAYERFLAG_SPEC;
+	if(ViewLocked)
 		pDDNetPlayer->m_Flags |= EXPLAYERFLAG_SPEC;
 	if(m_Paused == PAUSE_PAUSED)
 		pDDNetPlayer->m_Flags |= EXPLAYERFLAG_PAUSED;
@@ -965,10 +985,10 @@ void CPlayer::ProcessScoreResult(CScorePlayerResult &Result)
 			break;
 		case CScorePlayerResult::PLAYER_INFO:
 		{
-			if(Result.m_Data.m_Info.m_Time.has_value())
+			if(Result.m_Data.m_Info.m_Score.has_value())
 			{
-				GameServer()->Score()->PlayerData(m_ClientId)->Set(Result.m_Data.m_Info.m_Time.value(), Result.m_Data.m_Info.m_aTimeCp);
-				Server()->SetClientScore(m_ClientId, Result.m_Data.m_Info.m_Time.value());
+				GameServer()->Score()->PlayerData(m_ClientId)->Set(Result.m_Data.m_Info.m_Score.value(), Result.m_Data.m_Info.m_aScoreCp);
+				Server()->SetClientScore(m_ClientId, Result.m_Data.m_Info.m_Score.value());
 			}
 			Server()->ExpireServerInfo();
 			int Birthday = Result.m_Data.m_Info.m_Birthday;
@@ -987,16 +1007,10 @@ void CPlayer::ProcessScoreResult(CScorePlayerResult &Result)
 
 				GameServer()->CreateBirthdayEffect(GetCharacter()->m_Pos, GetCharacter()->TeamMask());
 			}
-			GameServer()->SendRecord(m_ClientId);
+			if(str_comp(GameServer()->m_pController->m_pGameType, "Rhythm") != 0)
+				GameServer()->SendRecord(m_ClientId);
 			break;
 		}
-		case CScorePlayerResult::PLAYER_TIMECP:
-			GameServer()->Score()->PlayerData(m_ClientId)->SetBestTimeCp(Result.m_Data.m_Info.m_aTimeCp);
-			char aBuf[128], aTime[32];
-			str_time_float(Result.m_Data.m_Info.m_Time.value(), TIME_HOURS_CENTISECS, aTime, sizeof(aTime));
-			str_format(aBuf, sizeof(aBuf), "Showing the checkpoint times for '%s' with a race time of %s", Result.m_Data.m_Info.m_aRequestedPlayer, aTime);
-			GameServer()->SendChatTarget(m_ClientId, aBuf);
-			break;
 		}
 	}
 }
@@ -1029,4 +1043,21 @@ void CPlayer::CCameraInfo::Reset()
 	m_Zoom = 1.0f;
 	m_Deadzone = 0.0f;
 	m_FollowFactor = 0.0f;
+}
+
+// beat dance
+void CPlayer::SetFixedView(vec2 Pos)
+{
+	m_FixedViewPos = Pos;
+	m_ViewPos = Pos;
+}
+
+void CPlayer::ClearFixedView()
+{
+	m_FixedViewPos.reset();
+}
+
+bool CPlayer::IsViewLocked() const
+{
+	return m_FixedViewPos.has_value();
 }

@@ -123,7 +123,7 @@ void CGameControllerDDRace::SetArmorProgress(CCharacter *pCharacter, int Progres
 int CGameControllerDDRace::SnapPlayerScore(int SnappingClient, CPlayer *pPlayer)
 {
 	bool HideScore = g_Config.m_SvHideScore && SnappingClient != pPlayer->GetCid();
-	std::optional<float> Score = GameServer()->Score()->PlayerData(pPlayer->GetCid())->m_BestTime;
+	std::optional<float> Score = GameServer()->Score()->PlayerData(pPlayer->GetCid())->m_BestScore;
 
 	if(Server()->IsSixup(SnappingClient))
 	{
@@ -153,11 +153,11 @@ int CGameControllerDDRace::SnapPlayerScore(int SnappingClient, CPlayer *pPlayer)
 
 IGameController::CFinishTime CGameControllerDDRace::SnapPlayerTime(int SnappingClient, CPlayer *pPlayer)
 {
-	std::optional<float> BestTime = GameServer()->Score()->PlayerData(pPlayer->GetCid())->m_BestTime;
-	if(BestTime.has_value() && (!g_Config.m_SvHideScore || SnappingClient == pPlayer->GetCid()))
+	std::optional<float> BestScore = GameServer()->Score()->PlayerData(pPlayer->GetCid())->m_BestScore;
+	if(BestScore.has_value() && (!g_Config.m_SvHideScore || SnappingClient == pPlayer->GetCid()))
 	{
 		// same as in str_time_float
-		int64_t TimeMilliseconds = static_cast<int64_t>(std::roundf(BestTime.value() * 1000.0f));
+		int64_t TimeMilliseconds = static_cast<int64_t>(std::roundf(BestScore.value() * 1000.0f));
 		int Seconds = static_cast<int>(TimeMilliseconds / 1000);
 		int Millis = static_cast<int>(TimeMilliseconds % 1000);
 		return CFinishTime(Seconds, Millis);
@@ -165,12 +165,12 @@ IGameController::CFinishTime CGameControllerDDRace::SnapPlayerTime(int SnappingC
 	return CFinishTime::NotFinished();
 }
 
-IGameController::CFinishTime CGameControllerDDRace::SnapMapBestTime(int SnappingClient)
+IGameController::CFinishTime CGameControllerDDRace::SnapMapBestScore(int SnappingClient)
 {
-	if(m_CurrentRecord.has_value() && !g_Config.m_SvHideScore)
+	if(m_CurrentBestScore.has_value() && !g_Config.m_SvHideScore)
 	{
 		// same as in str_time_float
-		int64_t TimeMilliseconds = static_cast<int64_t>(std::roundf(m_CurrentRecord.value() * 1000.0f));
+		int64_t TimeMilliseconds = static_cast<int64_t>(std::roundf(m_CurrentBestScore.value() * 1000.0f));
 		int Seconds = static_cast<int>(TimeMilliseconds / 1000);
 		int Millis = static_cast<int>(TimeMilliseconds % 1000);
 		return CFinishTime(Seconds, Millis);

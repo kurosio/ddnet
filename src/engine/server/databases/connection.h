@@ -95,6 +95,8 @@ private:
 protected:
 	void FormatCreateRace(char *aBuf, unsigned int BufferSize, bool Backup) const;
 	void FormatCreateTeamrace(char *aBuf, unsigned int BufferSize, const char *pIdType, bool Backup) const;
+	void FormatCreateRhythm(char *aBuf, unsigned int BufferSize, bool Backup) const;
+	void FormatCreateTeamrhythm(char *aBuf, unsigned int BufferSize, const char *pIdType, bool Backup) const;
 	void FormatCreateMaps(char *aBuf, unsigned int BufferSize) const;
 	void FormatCreateSaves(char *aBuf, unsigned int BufferSize, bool Backup) const;
 	void FormatCreatePoints(char *aBuf, unsigned int BufferSize) const;

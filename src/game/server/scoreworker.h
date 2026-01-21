@@ -40,7 +40,6 @@ struct CScorePlayerResult : ISqlResult
 		BROADCAST,
 		MAP_VOTE,
 		PLAYER_INFO,
-		PLAYER_TIMECP,
 	} m_MessageKind;
 	union
 	{
@@ -48,8 +47,8 @@ struct CScorePlayerResult : ISqlResult
 		char m_aBroadcast[1024];
 		struct
 		{
-			std::optional<float> m_Time;
-			float m_aTimeCp[NUM_CHECKPOINTS];
+			std::optional<float> m_Score;
+			float m_aScoreCp[NUM_CHECKPOINTS];
 			int m_Birthday; // 0 indicates no birthday
 			char m_aRequestedPlayer[MAX_NAME_LENGTH];
 		} m_Info = {};
@@ -64,14 +63,14 @@ struct CScorePlayerResult : ISqlResult
 	void SetVariant(Variant v);
 };
 
-struct CScoreLoadBestTimeResult : ISqlResult
+struct CScoreLoadBestScoreResult : ISqlResult
 {
-	std::optional<float> m_CurrentRecord = std::nullopt;
+	std::optional<float> m_CurrentBestScore = std::nullopt;
 };
 
-struct CSqlLoadBestTimeRequest : ISqlData
+struct CSqlLoadBestScoreRequest : ISqlData
 {
-	CSqlLoadBestTimeRequest(std::shared_ptr<CScoreLoadBestTimeResult> pResult) :
+	CSqlLoadBestScoreRequest(std::shared_ptr<CScoreLoadBestScoreResult> pResult) :
 		ISqlData(std::move(pResult))
 	{
 	}
@@ -136,9 +135,9 @@ struct CSqlScoreData : ISqlData
 	char m_aName[MAX_MAP_LENGTH];
 
 	int m_ClientId;
-	float m_Time;
+	float m_Score;
 	char m_aTimestamp[TIMESTAMP_STR_LENGTH];
-	float m_aCurrentTimeCp[NUM_CHECKPOINTS];
+	float m_aCurrentScoreCp[NUM_CHECKPOINTS];
 	int m_Num;
 	bool m_Search;
 	char m_aRequestingPlayer[MAX_NAME_LENGTH];
@@ -187,7 +186,7 @@ struct CSqlTeamScoreData : ISqlData
 
 	char m_aGameUuid[UUID_MAXSTRSIZE];
 	char m_aMap[MAX_MAP_LENGTH];
-	float m_Time;
+	float m_Score;
 	char m_aTimestamp[TIMESTAMP_STR_LENGTH];
 	unsigned int m_Size;
 	char m_aaNames[MAX_CLIENTS][MAX_NAME_LENGTH];
@@ -234,28 +233,28 @@ public:
 
 	void Reset()
 	{
-		m_BestTime.reset();
-		for(float &BestTimeCp : m_aBestTimeCp)
-			BestTimeCp = 0;
+		m_BestScore.reset();
+		for(float &BestScoreCp : m_aBestScoreCp)
+			BestScoreCp = 0;
 
 		m_RecordStopTick = -1;
 	}
 
-	void Set(float Time, const float aTimeCp[NUM_CHECKPOINTS])
+	void Set(float Score, const float aScoreCp[NUM_CHECKPOINTS])
 	{
-		m_BestTime = Time;
+		m_BestScore = Score;
 		for(int i = 0; i < NUM_CHECKPOINTS; i++)
-			m_aBestTimeCp[i] = aTimeCp[i];
+			m_aBestScoreCp[i] = aScoreCp[i];
 	}
 
-	void SetBestTimeCp(const float aTimeCp[NUM_CHECKPOINTS])
+	void SetBestScoreCp(const float aScoreCp[NUM_CHECKPOINTS])
 	{
 		for(int i = 0; i < NUM_CHECKPOINTS; i++)
-			m_aBestTimeCp[i] = aTimeCp[i];
+			m_aBestScoreCp[i] = aScoreCp[i];
 	}
 
-	std::optional<float> m_BestTime;
-	float m_aBestTimeCp[NUM_CHECKPOINTS];
+	std::optional<float> m_BestScore;
+	float m_aBestScoreCp[NUM_CHECKPOINTS];
 
 	int m_RecordStopTick;
 	float m_RecordFinishTime;
@@ -271,7 +270,7 @@ struct CTeamrank
 	// Assumes that a database query equivalent to
 	//
 	//     SELECT TeamId, Name [, ...] -- the order is important
-	//     FROM record_teamrace
+	//     FROM record_teamrhythm
 	//     ORDER BY TeamId, Name
 	//
 	// was executed and that the result line of the first team member is already selected.
@@ -289,14 +288,13 @@ struct CTeamrank
 
 struct CScoreWorker
 {
-	static bool LoadBestTime(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
+	static bool LoadBestScore(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 
 	static bool RandomMap(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool RandomUnfinishedMap(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool MapVote(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 
 	static bool LoadPlayerData(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
-	static bool LoadPlayerTimeCp(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool MapInfo(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool ShowRank(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool ShowTeamRank(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);

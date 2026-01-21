@@ -48,6 +48,40 @@ void IDbConnection::FormatCreateTeamrace(char *aBuf, unsigned int BufferSize, co
 		BinaryCollate(), MAX_NAME_LENGTH_SQL, BinaryCollate(), pIdType);
 }
 
+void IDbConnection::FormatCreateRhythm(char *aBuf, unsigned int BufferSize, bool Backup) const
+{
+	str_format(aBuf, BufferSize,
+		"CREATE TABLE IF NOT EXISTS %s_rhythm%s ("
+		"  Map VARCHAR(128) COLLATE %s NOT NULL, "
+		"  Name VARCHAR(%d) COLLATE %s NOT NULL, "
+		"  Timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+		"  Points INT DEFAULT 0, "
+		"  Server CHAR(4), "
+		"  GameId VARCHAR(64), "
+		"  DDNet7 BOOL DEFAULT FALSE, "
+		"  PRIMARY KEY (Map, Name, Points, Timestamp, Server)"
+		")",
+		GetPrefix(), Backup ? "_backup" : "",
+		BinaryCollate(), MAX_NAME_LENGTH_SQL, BinaryCollate());
+}
+
+void IDbConnection::FormatCreateTeamrhythm(char *aBuf, unsigned int BufferSize, const char *pIdType, bool Backup) const
+{
+	str_format(aBuf, BufferSize,
+		"CREATE TABLE IF NOT EXISTS %s_teamrhythm%s ("
+		"  Map VARCHAR(128) COLLATE %s NOT NULL, "
+		"  Name VARCHAR(%d) COLLATE %s NOT NULL, "
+		"  Timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+		"  Points INT DEFAULT 0, "
+		"  ID %s NOT NULL, " // VARBINARY(16) for MySQL and BLOB for SQLite
+		"  GameId VARCHAR(64), "
+		"  DDNet7 BOOL DEFAULT FALSE, "
+		"  PRIMARY KEY (Id, Name)"
+		")",
+		GetPrefix(), Backup ? "_backup" : "",
+		BinaryCollate(), MAX_NAME_LENGTH_SQL, BinaryCollate(), pIdType);
+}
+
 void IDbConnection::FormatCreateMaps(char *aBuf, unsigned int BufferSize) const
 {
 	str_format(aBuf, BufferSize,
